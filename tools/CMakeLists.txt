@@ -2,6 +2,7 @@ project ("ADBench")
 
 # Include sub-projects.
 #add_subdirectory ("Adept")
+add_subdirectory ("Accelerate")
 #add_subdirectory ("ADiMat")
 #add_subdirectory ("ADOLC")
 add_subdirectory ("Autograd")

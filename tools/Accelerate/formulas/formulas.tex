@@ -1,0 +1,81 @@
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage{microtype}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{hyperref}
+\usepackage{parskip}
+\usepackage{bm}
+\usepackage{xcolor}
+\usepackage{soul}
+
+\newcommand\R{\mathbb R}
+\newcommand\Z{\mathbb Z}
+\newcommand\ra\rightarrow
+\let\oldepsilon\epsilon \let\epsilon\varepsilon \let\varepsilon\oldepsilon
+\let\oldphi\phi \let\phi\varphi \let\varphi\oldphi
+\let\oldemptyset\emptyset \let\emptyset\varnothing \let\varnothing\oldemptyset
+
+\newcommand\logsumexp{\operatorname*{logsumexp}}
+\newcommand\sumf{\operatorname*{sum}}
+\newcommand\MultiGamma{\operatorname*{MultiGamma}}
+\newcommand\precomptext[1]{\colorbox[rgb]{0.9,0.9,1}{#1}}
+\newcommand\precomp[1]{\precomptext{$\displaystyle#1$}}
+
+
+\begin{document}
+
+\section{GMM: Gaussian Mixture Model fitting}
+
+Given:
+\begin{itemize}
+\item $N, D, K \in \Z_{>0}$
+\item $\bm{\alpha} = (\alpha_1,\ldots,\alpha_K) \in \R^K$
+\item $\bm{M} = (\bm{\mu}_1,\ldots,\bm{\mu}_K) \in \R^{K \times D}$
+\item $\bm{Q} = (\bm{q}_1,\ldots,\bm{q}_K) \in \R^{K \times D}$
+\item $\bm{L} = (\bm{\ell}_1,\ldots,\bm{\ell}_K) \in \R^{K \times \frac{D(D-1)}{2}}$
+\item $\bm{X} = (\bm{x}_1,\ldots,\bm{x}_N) \in \R^{N \times D}$
+\item $\gamma \in \R$, $m \in \Z$
+\end{itemize}
+
+Objective: (\precomptext{highlighted} are \emph{scalar values} independent of varying parameters)
+\begin{align*}
+L(\bm{\alpha}, \bm{M}, \bm{Q}, \bm{L}) =
+	&-\precomp{\tfrac12 N D \log(2\pi)} \\
+	&+ \sum_{i=1}^N \logsumexp\left( \left[
+		\alpha_k
+		+ \sumf(\bm{q}_k)
+		- \tfrac12\left\lVert
+			Q(\bm{q}_k, \bm{\ell}_k) (\bm{x}_i - \bm{\mu}_k)
+		\right\rVert^2
+	\right]_{k=1}^K \right) \\
+	&- \precomp{N} \cdot \logsumexp(\bm{\alpha}) \\
+	&+ \sum_{k=1}^K \left(
+		\precomp{\tfrac12 \gamma^2} \left(\lVert \exp(\bm{q}_k) \rVert^2 + \lVert \bm{l}_k \rVert^2\right)
+		- \precomp{m} \cdot \sumf(\bm{q}_k)
+	\right) \\
+	&- \precomp{K \cdot \left( n' D \left(\log(\gamma) - \tfrac12\log(2)\right) - \log\MultiGamma\bigl(\tfrac12 n', D\bigr) \right)}
+\end{align*}
+where $n' = D + m + 1$, and $\logsumexp(\bm{x} : \R^n) = \log(\sumf(\exp(\bm{x} - \max(\bm{x})))) + \max(\bm{x})$, and:
+\begin{align*}
+Q(\bm{q}, \bm{\ell}) = \begin{bmatrix}
+	\exp(q_1) & 0 & \cdots & 0 \\
+	\ell_1 & \exp(q_2) & \cdots & 0 \\
+	\vdots & \vdots & \ddots & \vdots \\
+	\ell_{D-1} & \ell_{D-1+D-2} & \cdots & \exp(q_D)
+\end{bmatrix}
+\end{align*}
+and $\log\MultiGamma$ is SciPy's \texttt{scipy.special.multigammaln}\footnote{\url{https://github.com/scipy/scipy/blob/7a7843bc1b54968ee99796333743c73608c0638d/scipy/special/spfun_stats.py}}, which can be defined by:
+\begin{align*}
+\log\MultiGamma(a, d)
+&= \log \biggl( \pi^{d(d-1)/4} \prod_{i=1}^d \Gamma(a - (i-1)/2) \biggr) \\
+&= \tfrac14 d(d-1) \log(\pi) + \sum_{i=1}^d \log\Gamma(a - (i-1)/2)
+\end{align*}
+and $\log\Gamma$ is generally implemented in \texttt{lgamma} for real arguments.
+
+\end{document}
