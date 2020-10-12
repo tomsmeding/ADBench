@@ -105,5 +105,5 @@ writeJacobian fpath out =
                         ,A.toList (gmmOutMeans out)
                         ,A.toList (gmmOutICF out)]
     in withFile fpath WriteMode $ \f -> do
-        hPutStrLn f $ "1 " ++ show (length values)
+        -- hPutStrLn f $ "1 " ++ show (length values)  -- This is the Python I/O format; without is the manual I/O format
         hPutStrLn f $ unwords (map show values)

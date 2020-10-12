@@ -5,7 +5,7 @@ packages:
 
 extra-deps:
 - github: tomsmeding/accelerate
-  commit: 38cbd6ac24dc7e5b359b7d2caf14935274ef2a84
+  commit: a97c30cd2c8a6095da743d449ea59e8fbe5e485e
 - accelerate-llvm-native-1.3.0.0@sha256:8d0b8fcbce1595cb380ee6bb892efffeb3abffd050550322d8b35b7f23e27481,6329
 - accelerate-llvm-1.3.0.0@sha256:06dc3779b3577ed41b2ddf2421452b566f290dce53df83d027938d41f2d5ec82,6054
 # Dependencies of Accelerate

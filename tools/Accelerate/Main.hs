@@ -11,8 +11,7 @@ import Timer
 
 writeTimes :: FilePath -> (Double, Double) -> IO ()
 writeTimes fpath (timeFunc, timeJac) =
-    writeFile fpath (unlines [unwords [show timeFunc, show timeJac]
-                             ,"tf tJ"])
+    writeFile fpath (unwords [show timeFunc, show timeJac] ++ "\n")
 
 main :: IO ()
 main = do

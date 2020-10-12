@@ -88,20 +88,36 @@ objective (GMMIn alphas means icf x wisGamma wisM) prec@(Precomputed c1 _) =
         sumQs = sum qvals
         shiftedX = zipWith (-) (replicate (I3 cAll k cAll) x)
                                (replicate (I3 n cAll cAll) means)
-        lmats = generate (I4 n k d d)
-                         (\(I4 _ ki i1 i2) ->
-                             let li = d * (d - 1) `div` 2 - (d-1 - i2) * (d-1 - i2 + 1) `div` 2
-                                        + i1 - i2 - 1
-                             in cond (i1 > i2) (lvals ! I2 ki li) 0)
+        -- If we would efficiently support array indexing in the AD
+        -- transformation, the 'generate' definition of lmats would be the most
+        -- readable. However, since we don't, we will define it in terms of
+        -- more information-retaining primitives in the 'backpermute'
+        -- definition of lmats.
+        lmats = if False
+            then generate (I4 n k d d)
+                          (\(I4 _ ki i1 i2) ->
+                              let li = d * (d - 1) `div` 2 - (d-1 - i2) * (d-1 - i2 + 1) `div` 2
+                                         + i1 - i2 - 1
+                              in cond (i1 > i2) (lvals ! I2 ki li) 0)
+            else let -- For lack of a backpermute-with-default primitive
+                     lvalsWithZero = zipWith (*)
+                                         (generate (I2 k (numL + 1)) (\(I2 _ j) -> cond (j == 0) 0 1))
+                                         (backpermute (I2 k (numL + 1)) (\(I2 i j) -> I2 i (j + d - 1)) icf)
+                 in backpermute (I4 n k d d)
+                                (\(I4 _ ki i1 i2) ->
+                                    let li = d * (d - 1) `div` 2 - (d-1 - i2) * (d-1 - i2 + 1) `div` 2
+                                               + i1 - i2 - 1
+                                    in cond (i1 > i2) (I2 ki (li + 1)) (I2 ki 0))
+                                lvalsWithZero
         eqxprod = zipWith (*) (replicate (I3 n cAll cAll) qdiags) shiftedX
         lxprod = sum (zipWith (*) lmats (replicate (I4 cAll cAll d cAll) shiftedX))
         innerTerm = zipWith (-) (replicate (I2 n cAll) (zipWith (+) alphas sumQs))
                                 (map (* 0.5) $ sqsum (zipWith (+) eqxprod lxprod))
         slse = sum (logsumexp innerTerm)
-    in zipWith3 (\a1 a2 a3 -> -c1 + a1 - a2 + a3)
-                slse
-                (map (fromIntegral n *) (logsumexp alphas))
-                (logWishartPrior k qdiags sumQs lvals wisGamma wisM prec)
+    in zipWith (\a1 a2 -> -c1 + a1 + a2)
+               (zipWith (-) slse
+                            (map (fromIntegral n *) (logsumexp alphas)))
+               (logWishartPrior k qdiags sumQs lvals wisGamma wisM prec)
 
 gmmObjective :: GMMIn -> FLT
 gmmObjective input =
