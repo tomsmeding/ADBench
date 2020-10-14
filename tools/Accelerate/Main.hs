@@ -1,6 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
 module Main where
 
+import Control.DeepSeq (force)
 import Data.List (tails)
 import System.Environment
 import System.FilePath
@@ -39,13 +40,21 @@ main = do
             timeImport <- timer1WHNF input  -- WHNF is sufficient because GMMIn has strict fields
             putStrLn $ "Importing took " ++ show timeImport ++ " seconds"
 
-            (timeFunc, output1) <- timer gmmObjective input nrunsF timeLimit
+            let compiledFunc = gmmObjectiveProgram input
+            timeFCompile <- timer1WHNF (force compiledFunc)
+            putStrLn $ "Compilation of function took " ++ show timeFCompile ++ " seconds"
+
+            (timeFunc, output1) <- timer (gmmObjective compiledFunc) input nrunsF timeLimit
             print output1
             putStrLn $ "Time taken: " ++ show timeFunc
 
+            let compiledGrad = gmmObjectiveGradProgram input
+            timeGCompile <- timer1WHNF (force compiledGrad)
+            putStrLn $ "Compilation of gradient took " ++ show timeGCompile ++ " seconds"
+
             timeJac <- if nrunsJ > 0
                 then do
-                    (timeJac, output) <- timer gmmObjectiveGrad input nrunsJ timeLimit
+                    (timeJac, output) <- timer (gmmObjectiveGrad compiledGrad) input nrunsJ timeLimit
                     writeJacobian outJPath output
                     return timeJac
                 else return 0

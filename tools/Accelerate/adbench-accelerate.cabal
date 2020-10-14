@@ -5,7 +5,7 @@ author:              Tom Smeding
 maintainer:          tom.smeding@gmail.com
 build-type:          Simple
 
-executable adbench-accelerate
+executable adbench-accelerate-gmm
   main-is:             Main.hs
   other-modules:       GMM, GMMIO, Timer, Types
   build-depends:       base >= 4.13 && < 4.15,

@@ -2,13 +2,15 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE ViewPatterns #-}
 module GMM (
-    gmmObjective,
-    gmmObjectiveGrad
+    gmmObjective, gmmObjectiveProgram,
+    gmmObjectiveGrad, gmmObjectiveGradProgram,
 ) where
 
 import Prelude (id)
 import qualified Prelude as P
+import Control.DeepSeq (NFData)
 import Data.Array.Accelerate
 -- import qualified Data.Array.Accelerate.Interpreter as Backend
 import qualified Data.Array.Accelerate.LLVM.Native as Backend
@@ -119,16 +121,25 @@ objective (GMMIn alphas means icf x wisGamma wisM) prec@(Precomputed c1 _) =
                             (map (fromIntegral n *) (logsumexp alphas)))
                (logWishartPrior k qdiags sumQs lvals wisGamma wisM prec)
 
-gmmObjective :: GMMIn -> FLT
-gmmObjective input =
-    Backend.run1 (\input' -> objective input' (constant (precompute input)))
-                 input
-        `linearIndexArray` 0
+newtype ObjectiveProgram = ObjectiveProgram (GMMIn -> Scalar FLT)
+  deriving (Generic)
+instance NFData ObjectiveProgram
 
-gmmObjectiveGrad :: GMMIn -> GMMOut
-gmmObjectiveGrad input =
-    Backend.run1 (\input' ->
-                    let prec = constant (precompute input)
-                        GMMIn a m i _ _ _ = gradientA (P.flip objective prec) input'
-                    in GMMOut a m i)
-                 input
+gmmObjectiveProgram :: GMMIn -> ObjectiveProgram
+gmmObjectiveProgram (precompute -> prec) = ObjectiveProgram (Backend.run1 (\input -> objective input (constant prec)))
+
+gmmObjective :: ObjectiveProgram -> GMMIn -> FLT
+gmmObjective (ObjectiveProgram prog) input = prog input `linearIndexArray` 0
+
+newtype ObjectiveGradProgram = ObjectiveGradProgram (GMMIn -> GMMOut)
+  deriving (Generic)
+instance NFData ObjectiveGradProgram
+
+gmmObjectiveGradProgram :: GMMIn -> ObjectiveGradProgram
+gmmObjectiveGradProgram (precompute -> prec) =
+    ObjectiveGradProgram $ Backend.run1 $ \input ->
+        let GMMIn a m i _ _ _ = gradientA (\input' -> objective input' (constant prec)) input
+        in GMMOut a m i
+
+gmmObjectiveGrad :: ObjectiveGradProgram -> GMMIn -> GMMOut
+gmmObjectiveGrad (ObjectiveGradProgram prog) input = prog input
