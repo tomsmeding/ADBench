@@ -1,6 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
 module Main where
 
+import Data.List (tails)
 import System.Environment
 import System.FilePath
 
@@ -12,6 +13,10 @@ import Timer
 writeTimes :: FilePath -> (Double, Double) -> IO ()
 writeTimes fpath (timeFunc, timeJac) =
     writeFile fpath (unwords [show timeFunc, show timeJac] ++ "\n")
+
+isSubstr :: String -> String -> Bool
+small `isSubstr` large = any (`startsWith` small) (tails large)
+  where s `startsWith` prefix = take (length prefix) s == prefix
 
 main :: IO ()
 main = do
@@ -26,8 +31,9 @@ main = do
                    _ -> error "Expected '-rep' or nothing as 7th argument"
 
             let inPath = inDir </> testId <.> "txt"
-                outJPath = outDir </> testId ++ "_J_Accelerate" <.> "txt"
-                outTimesPath = outDir </> testId ++ "_times_Accelerate" <.> "txt"
+                progName = if "Accelerate1" `isSubstr` outDir then "Accelerate1" else "Accelerate"
+                outJPath = outDir </> testId ++ "_J_" ++ progName <.> "txt"
+                outTimesPath = outDir </> testId ++ "_times_" ++ progName <.> "txt"
 
             input <- readInstance inPath replicatePoint
             timeImport <- timer1WHNF input  -- WHNF is sufficient because GMMIn has strict fields
