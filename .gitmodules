@@ -6,4 +6,4 @@
 	url = https://github.com/rjhogan/Adept-2
 [submodule "submodules/adol-c"]
 	path = submodules/adol-c
-	url = https://gitlab.com/adol-c/adol-c
+	url = https://github.com/coin-or/ADOL-C
