@@ -9,6 +9,7 @@ import System.FilePath
 import GMMIO
 import GMM
 import Timer
+import qualified Playground as Play
 
 
 writeTimes :: FilePath -> (Double, Double) -> IO ()
@@ -60,6 +61,26 @@ main = do
                 else return 0
 
             writeTimes outTimesPath (timeFunc, timeJac)
+
+        ["-play"] -> do
+            let benchmark descr value = do
+                    tm <- timer1WHNF (force value)
+                    putStrLn $ "Play " ++ descr ++ " time taken: " ++ show tm
+
+            let arg = Play.functionArgument
+            benchmark "argument" arg
+
+            let functions = zip Play.functionsToTime [1::Int ..]
+
+            -- TODO: why does the first invocation take longer?
+            flip mapM_ (take (3 * length functions) (cycle functions)) $ \(func, i) -> do
+                benchmark ("function " ++ show i) (func arg)
+
+        ["-play", "-fusion1"] -> do
+            print Play.fusionProgram1
+
+        ["-play", "-fusion2"] -> do
+            print Play.fusionProgram2
 
         _ -> error "Expected 6 or 7 arguments"
   where

@@ -41,6 +41,7 @@ data GMMIn =
 
 deriving instance Show GMMIn
 instance Arrays GMMIn
+instance NFData GMMIn
 
 pattern GMMIn :: Acc (Vector FLT)
               -> Acc (Matrix FLT)
