@@ -12,8 +12,9 @@ import Prelude (id)
 import qualified Prelude as P
 import Control.DeepSeq (NFData)
 import Data.Array.Accelerate
--- import qualified Data.Array.Accelerate.Interpreter as Backend
-import qualified Data.Array.Accelerate.LLVM.Native as Backend
+import qualified Data.Array.Accelerate.Interpreter as I
+import qualified Data.Array.Accelerate.LLVM.Native as CPU
+import qualified Data.Array.Accelerate.LLVM.PTX as GPU
 import Numeric.SpecFunctions (logGamma)
 
 import GMMIO
@@ -125,8 +126,14 @@ newtype ObjectiveProgram = ObjectiveProgram (GMMIn -> Scalar FLT)
   deriving (Generic)
 instance NFData ObjectiveProgram
 
-gmmObjectiveProgram :: GMMIn -> ObjectiveProgram
-gmmObjectiveProgram (precompute -> prec) = ObjectiveProgram (Backend.run1 (\input -> objective input (constant prec)))
+run1Of :: (Arrays a, Arrays b) => BackendKind -> (Acc a -> Acc b) -> a -> b
+run1Of Interpreter = I.run1
+run1Of CPU = CPU.run1
+run1Of GPU = GPU.run1
+
+gmmObjectiveProgram :: BackendKind -> GMMIn -> ObjectiveProgram
+gmmObjectiveProgram kind (precompute -> prec) =
+    ObjectiveProgram (run1Of kind (\input -> objective input (constant prec)))
 
 gmmObjective :: ObjectiveProgram -> GMMIn -> FLT
 gmmObjective (ObjectiveProgram prog) input = prog input `linearIndexArray` 0
@@ -135,9 +142,9 @@ newtype ObjectiveGradProgram = ObjectiveGradProgram (GMMIn -> GMMOut)
   deriving (Generic)
 instance NFData ObjectiveGradProgram
 
-gmmObjectiveGradProgram :: GMMIn -> ObjectiveGradProgram
-gmmObjectiveGradProgram (precompute -> prec) =
-    ObjectiveGradProgram $ Backend.run1 $ \input ->
+gmmObjectiveGradProgram :: BackendKind -> GMMIn -> ObjectiveGradProgram
+gmmObjectiveGradProgram kind (precompute -> prec) =
+    ObjectiveGradProgram $ run1Of kind $ \input ->
         let GMMIn a m i _ _ _ = gradientA (\input' -> objective input' (constant prec)) input
         in GMMOut a m i
 

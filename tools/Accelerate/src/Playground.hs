@@ -12,6 +12,7 @@ import Control.DeepSeq (NFData(..))
 import Data.Array.Accelerate
 -- import qualified Data.Array.Accelerate.Interpreter as I
 import qualified Data.Array.Accelerate.LLVM.Native as CPU
+import qualified Data.Array.Accelerate.LLVM.PTX as GPU
 import System.IO.Unsafe (unsafePerformIO)
 
 import GMMIO
@@ -64,7 +65,7 @@ functionArgument = FunctionArgument bigInstance inputProgram simplified withShap
 {-# NOINLINE functionsToTime #-}
 functionsToTime :: [FunctionArgument -> ()]
 functionsToTime =
-    [\(FunctionArgument input f1 _ _ _) -> CPU.run (f1 (use input)) `seq` ()
-    ,\(FunctionArgument input _ f2 _ _) -> CPU.run (f2 (use input)) `seq` ()
-    ,\(FunctionArgument input _ _ f3 _) -> CPU.run (f3 (use input)) `seq` ()
-    ,\(FunctionArgument input _ _ _ f4) -> CPU.run (f4 (use input)) `seq` ()]
+    [\(FunctionArgument input f1 _ _ _) -> GPU.run (f1 (use input)) `seq` ()
+    ,\(FunctionArgument input _ f2 _ _) -> GPU.run (f2 (use input)) `seq` ()
+    ,\(FunctionArgument input _ _ f3 _) -> GPU.run (f3 (use input)) `seq` ()
+    ,\(FunctionArgument input _ _ _ f4) -> GPU.run (f4 (use input)) `seq` ()]

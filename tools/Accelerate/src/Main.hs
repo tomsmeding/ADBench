@@ -2,14 +2,29 @@
 module Main where
 
 import Control.DeepSeq (force)
+import Control.Monad (forM_)
+import qualified Criterion as Cr
 import Data.List (tails)
+import Data.Monoid (Any(..))
 import System.Environment
 import System.FilePath
 
 import GMMIO
 import GMM
 import Timer
+import Types
 import qualified Playground as Play
+
+import qualified Data.Array.Accelerate as A
+import qualified Data.Array.Accelerate.LLVM.PTX as GPU
+
+
+testGPU :: IO ()
+testGPU = do
+    let prog = A.sum (A.generate (A.I1 1000000) (\(A.I1 i) -> A.toFloating i :: A.Exp Float))
+    print $ GPU.run prog
+    inst <- readInstance "../../data/gmm/1k/gmm_d2_K5.txt" False
+    print $ gmmObjective (gmmObjectiveProgram GPU inst) inst
 
 
 writeTimes :: FilePath -> (Double, Double) -> IO ()
@@ -20,17 +35,72 @@ isSubstr :: String -> String -> Bool
 small `isSubstr` large = any (`startsWith` small) (tails large)
   where s `startsWith` prefix = take (length prefix) s == prefix
 
+-- Args flags bare-args
+data Args = Args [String] [String]
+  deriving (Show)
+
+instance Semigroup Args where
+    Args a b <> Args a' b' = Args (a <> a') (b <> b')
+
+instance Monoid Args where
+    mempty = Args mempty mempty
+
+parseArgs :: IO Args
+parseArgs = foldMap parseArg <$> getArgs
+  where parseArg ('-':flag) = Args [flag] []
+        parseArg arg = Args [] [arg]
+
 main :: IO ()
 main = do
-    getArgs >>= \case
-        (inDir : outDir : testId : nrunsF' : nrunsJ' : timeLimit' : rest) -> do
+    parseArgs >>= \case
+        Args ["play"] [] -> do
+            let benchmark descr value = do
+                    tm <- timer1WHNF (force value)
+                    putStrLn $ "Play " ++ descr ++ " time taken: " ++ show tm
+
+            let arg = Play.functionArgument
+            benchmark "argument" arg
+
+            let functions = zip Play.functionsToTime [1::Int ..]
+
+            -- TODO: why does the first invocation take longer?
+            forM_ (take (3 * length functions) (cycle functions)) $ \(func, i) -> do
+                benchmark ("function " ++ show i) (func arg)
+
+        Args ["play", "criterion"] [] -> do
+            let arg = Play.functionArgument
+            tmArg <- timer1WHNF (force arg)
+            putStrLn $ "Forcing argument took: " ++ show tmArg
+
+            let functions = zip Play.functionsToTime [1::Int ..]
+            putStrLn "Warming up..."
+            forM_ functions $ \(func, i) -> do
+                tm <- timer1WHNF (force (func arg))
+                putStrLn $ "Running function " ++ show i ++ " took: " ++ show tm
+
+            putStrLn "Engaging criterion..."
+            forM_ functions $ \(func, i) -> do
+                putStrLn $ "Function " ++ show i ++ ":"
+                Cr.benchmark (Cr.nf func arg)
+
+        Args ["play", "fusion1"] [] -> do
+            print Play.fusionProgram1
+
+        Args ["play", "fusion2"] [] -> do
+            print Play.fusionProgram2
+
+        Args ["testgpu"] [] -> do
+            testGPU
+
+        Args flags [inDir, outDir, testId, nrunsF', nrunsJ', timeLimit'] -> do
             let nrunsF = parseIntArg nrunsF'
                 nrunsJ = parseIntArg nrunsJ'
                 timeLimit = parseIntArg timeLimit'
-                replicatePoint = case rest of
-                   ["-rep"] -> True
-                   [] -> False
-                   _ -> error "Expected '-rep' or nothing as 7th argument"
+                parseFlag "rep" = (Any True, Any False)
+                parseFlag "gpu" = (Any False, Any True)
+                parseFlag _ = error "Expected '-rep', '-gpu' or nothing as 7th argument"
+                (Any replicatePoint, Any useGPU) = foldMap parseFlag flags
+                backendKind = if useGPU then GPU else CPU
 
             let inPath = inDir </> testId <.> "txt"
                 progName = if "Accelerate1" `isSubstr` outDir then "Accelerate1" else "Accelerate"
@@ -41,7 +111,7 @@ main = do
             timeImport <- timer1WHNF input  -- WHNF is sufficient because GMMIn has strict fields
             putStrLn $ "Importing took " ++ show timeImport ++ " seconds"
 
-            let compiledFunc = gmmObjectiveProgram input
+            let compiledFunc = gmmObjectiveProgram backendKind input
             timeFCompile <- timer1WHNF (force compiledFunc)
             putStrLn $ "Compilation of function took " ++ show timeFCompile ++ " seconds"
 
@@ -49,7 +119,7 @@ main = do
             print output1
             putStrLn $ "Time taken: " ++ show timeFunc
 
-            let compiledGrad = gmmObjectiveGradProgram input
+            let compiledGrad = gmmObjectiveGradProgram backendKind input
             timeGCompile <- timer1WHNF (force compiledGrad)
             putStrLn $ "Compilation of gradient took " ++ show timeGCompile ++ " seconds"
 
@@ -61,26 +131,6 @@ main = do
                 else return 0
 
             writeTimes outTimesPath (timeFunc, timeJac)
-
-        ["-play"] -> do
-            let benchmark descr value = do
-                    tm <- timer1WHNF (force value)
-                    putStrLn $ "Play " ++ descr ++ " time taken: " ++ show tm
-
-            let arg = Play.functionArgument
-            benchmark "argument" arg
-
-            let functions = zip Play.functionsToTime [1::Int ..]
-
-            -- TODO: why does the first invocation take longer?
-            flip mapM_ (take (3 * length functions) (cycle functions)) $ \(func, i) -> do
-                benchmark ("function " ++ show i) (func arg)
-
-        ["-play", "-fusion1"] -> do
-            print Play.fusionProgram1
-
-        ["-play", "-fusion2"] -> do
-            print Play.fusionProgram2
 
         _ -> error "Expected 6 or 7 arguments"
   where
