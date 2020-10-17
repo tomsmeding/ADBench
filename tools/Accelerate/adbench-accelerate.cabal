@@ -7,7 +7,9 @@ build-type:          Simple
 
 executable adbench-accelerate-gmm
   main-is:             Main.hs
-  other-modules:       GMM, GMMIO, Timer, Types, Playground
+  other-modules:       GMM, GMMIO, Timer, Types, Playground,
+                       Playground.M1, Playground.M2, Playground.M3,
+                       Playground.Support
   build-depends:       base >= 4.13 && < 4.15,
                        accelerate,
                        accelerate-llvm-native,
