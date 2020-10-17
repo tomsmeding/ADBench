@@ -52,17 +52,19 @@ data FunctionArgument
                        !(Acc GMMIn -> Acc (Vector Float, Matrix Float, Matrix Float))
                        !(Acc GMMIn -> Acc (Vector Float, Matrix Float, Matrix Float))
                        !(Acc GMMIn -> Acc (Vector Float, Matrix Float, Matrix Float))
+                       !(Acc GMMIn -> Acc (Vector Float, Matrix Float, Matrix Float))
 
 instance NFData FunctionArgument where
-    rnf (FunctionArgument input f1 f2 f3) = rnf input `seq` f1 `seq` f2 `seq` f3 `seq` ()
+    rnf (FunctionArgument input f1 f2 f3 f4) = rnf input `seq` f1 `seq` f2 `seq` f3 `seq` f4 `seq` ()
 
 {-# NOINLINE functionArgument #-}
 functionArgument :: FunctionArgument
-functionArgument = FunctionArgument bigInstance inputProgram simplified withShapeProp
+functionArgument = FunctionArgument bigInstance inputProgram simplified withShapeProp withoutExpTemps
 
 {-# NOINLINE functionsToTime #-}
 functionsToTime :: [FunctionArgument -> ()]
 functionsToTime =
-    [\(FunctionArgument input f1 _ _) -> CPU.run (f1 (use input)) `seq` ()
-    ,\(FunctionArgument input _ f2 _) -> CPU.run (f2 (use input)) `seq` ()
-    ,\(FunctionArgument input _ _ f3) -> CPU.run (f3 (use input)) `seq` ()]
+    [\(FunctionArgument input f1 _ _ _) -> CPU.run (f1 (use input)) `seq` ()
+    ,\(FunctionArgument input _ f2 _ _) -> CPU.run (f2 (use input)) `seq` ()
+    ,\(FunctionArgument input _ _ f3 _) -> CPU.run (f3 (use input)) `seq` ()
+    ,\(FunctionArgument input _ _ _ f4) -> CPU.run (f4 (use input)) `seq` ()]
