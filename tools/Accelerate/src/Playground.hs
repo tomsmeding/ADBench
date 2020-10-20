@@ -2,9 +2,13 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 module Playground (
-    functionArgument,
+    prepare,
     functionsToTime,
-    fusionProgram
+
+    prepareArgument,
+    functionsToTimeUncached,
+
+    fusionProgram,
 ) where
 
 import Prelude (seq)
@@ -43,25 +47,40 @@ smallInstance = unsafePerformIO $ readInstance "../../data/gmm/1k/gmm_d2_K5.txt"
 bigInstance :: GMMIn
 bigInstance = unsafePerformIO $ readInstance "../../data/gmm/1k/gmm_d32_K25.txt" False
 
+programs :: [Acc GMMIn -> Acc (Vector Float, Matrix Float, Matrix Float)]
+programs = [inputProgram, simplified, withShapeProp, withoutExpTemps, selectiveRecompute1, selectiveRecompute2]
+
 {-# NOINLINE fusionProgram #-}
 fusionProgram :: Int -> Acc (Vector Float, Matrix Float, Matrix Float)
-fusionProgram i =
-    let PreparedFunc _ fs = functionArgument
-    in (fs P.!! i) (use emptyInstance)
+fusionProgram i = (programs P.!! i) (use emptyInstance)
 
-data PreparedFunc
-    = PreparedFunc !GMMIn
-                   [Acc GMMIn -> Acc (Vector Float, Matrix Float, Matrix Float)]
+data PreparedFuncs
+    = PreparedFuncs !GMMIn
+                    [GMMIn -> (Vector Float, Matrix Float, Matrix Float)]
 
-instance NFData PreparedFunc where
-    rnf (PreparedFunc input fs) = rnf input `seq` rnf fs `seq` ()
+instance NFData PreparedFuncs where
+    rnf (PreparedFuncs input fs) = rnf input `seq` P.foldr seq () fs
 
-{-# NOINLINE functionArgument #-}
-functionArgument :: PreparedFunc
-functionArgument = PreparedFunc bigInstance [inputProgram, simplified, withShapeProp, withoutExpTemps, selectiveRecompute1, selectiveRecompute2]
+{-# NOINLINE prepare #-}
+prepare :: PreparedFuncs
+prepare = PreparedFuncs bigInstance [CPU.run1 p | p <- programs]
 
 {-# NOINLINE functionsToTime #-}
-functionsToTime :: [PreparedFunc -> ()]
+functionsToTime :: [PreparedFuncs -> ()]
 functionsToTime =
-    [\(PreparedFunc input fs) -> CPU.run ((fs P.!! i) (use input)) `seq` ()
+    [\(PreparedFuncs input fs) -> (fs P.!! i) input `seq` ()
+    | i <- [0..5]]
+
+newtype PreparedArgument = PreparedArgument GMMIn
+
+instance NFData PreparedArgument where
+    rnf (PreparedArgument input) = rnf input
+
+prepareArgument :: PreparedArgument
+prepareArgument = PreparedArgument bigInstance
+
+{-# NOINLINE functionsToTimeUncached #-}
+functionsToTimeUncached :: [PreparedArgument -> ()]
+functionsToTimeUncached =
+    [\(PreparedArgument input) -> CPU.run ((programs P.!! i) (use input)) `seq` ()
     | i <- [0..5]]

@@ -1,7 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
 module Main where
 
-import Control.Concurrent (threadDelay)
+-- import Control.Concurrent (threadDelay)
 import Control.DeepSeq (force)
 import Control.Monad (forM, forM_)
 import qualified Criterion as Cr
@@ -32,9 +32,7 @@ data Stats a = Stats { statsMean :: a, statsStddev :: a, statsStderr :: a }
   deriving (Show)
 
 prettyStats :: (Show a, Floating a) => Stats a -> String
-prettyStats (Stats mu sdev serr) = unlines
-    ["Mean: " ++ show mu ++ " (stderr: " ++ show serr ++ ")"
-    ,"Stddev: " ++ show sdev]
+prettyStats (Stats mu sdev serr) = "Mean: " ++ show mu ++ " ± " ++ show serr ++ "; stddev: " ++ show sdev
 
 computeStats :: Floating a => [a] -> Stats a
 computeStats l =
@@ -74,49 +72,77 @@ parseIndexMultiple input = case reads input of
     [(n, 'x' : i')] -> replicate n (read i' - 1)
     _ -> error $ "Cannot parse (Nx)?N from '" ++ show input ++ "'"
 
+entryPlayFunctions :: [String] -> IO ()
+entryPlayFunctions indices = do
+    let arg = Play.prepare
+    argTm <- timer1WHNF (force arg)
+    putStrLn $ "Play argument + compilation time taken: " ++ show argTm
+
+    let nfunctions = length Play.functionsToTime
+    let indices' | null indices = take (3 * nfunctions) (cycle [0::Int .. nfunctions - 1])
+                 | otherwise = concatMap parseIndexMultiple indices
+
+    -- TODO: why do the first invocations take longer?
+    let warmupIndex = if null indices' then 0 else head indices'
+        performWarmup times idx = do
+            warmupTm <- timer1WHNF (force ((Play.functionsToTime !! idx) arg))
+            putStrLn $ "Play warmup(" ++ show (times::Int) ++ ") function " ++ show (warmupIndex+1) ++ " time taken: " ++ show warmupTm
+
+    performWarmup 1 warmupIndex
+    performWarmup 2 warmupIndex
+
+    stats <- fmap computeStats . forM indices' $ \i -> do
+        tm <- timer1WHNF (force ((Play.functionsToTime !! i) arg))
+        putStrLn ("Play function " ++ show (i+1) ++ " time taken: " ++ show tm)
+        return tm
+    putStrLn (prettyStats stats)
+
+entryPlayFunctionsNoWarmup :: [String] -> IO ()
+entryPlayFunctionsNoWarmup indices = do
+    let arg = Play.prepareArgument
+    argTm <- timer1WHNF (force arg)
+    putStrLn $ "Play argument time taken: " ++ show argTm
+
+    let nfunctions = length Play.functionsToTime
+    let indices' | null indices = take (3 * nfunctions) (cycle [0::Int .. nfunctions - 1])
+                 | otherwise = concatMap parseIndexMultiple indices
+
+    putStrLn "Not caching compilation results!"
+
+    stats <- fmap computeStats . forM indices' $ \i -> do
+        tm <- timer1WHNF (force ((Play.functionsToTimeUncached !! i) arg))
+        putStrLn ("Play function " ++ show (i+1) ++ " time taken: " ++ show tm)
+        return tm
+    putStrLn (prettyStats stats)
+
+entryPlayCriterion :: IO ()
+entryPlayCriterion = do
+    let arg = Play.prepare
+    tmArg <- timer1WHNF (force arg)
+    putStrLn $ "Forcing argument + compilation took: " ++ show tmArg
+
+    let functions = zip Play.functionsToTime [1::Int ..]
+    forM_ functions $ \(func, i) -> do
+        putStrLn $ "Function " ++ show i ++ ": Warming up..."
+        tm <- timer1WHNF (force (func arg))
+        putStrLn $ "Running function " ++ show i ++ " took: " ++ show tm
+
+        Cr.benchmark (Cr.nf func arg)
+
 main :: IO ()
 main = do
     -- threadDelay 20000000
 
     parseArgs >>= \case
-        Args ["play"] indices -> do
-            let arg = Play.functionArgument
-            argTm <- timer1WHNF (force arg)
-            putStrLn $ "Play argument time taken: " ++ show argTm
+        Args ["play"] indices -> entryPlayFunctions indices
+        Args ["play", "nowarm"] indices -> entryPlayFunctionsNoWarmup indices
 
-            let nfunctions = length Play.functionsToTime
-            let indices' | null indices = take (3 * nfunctions) (cycle [0::Int .. nfunctions - 1])
-                         | otherwise = concatMap parseIndexMultiple indices
-
-            -- TODO: why does the first invocation take longer?
-            let warmupIndex = if null indices' then 0 else head indices'
-            warmupTm <- timer1WHNF (force ((Play.functionsToTime !! warmupIndex) arg))
-            putStrLn $ "Play warmup function " ++ show (warmupIndex+1) ++ " time taken: " ++ show warmupTm
-
-            stats <- fmap computeStats . forM indices' $ \i -> do
-                tm <- timer1WHNF (force ((Play.functionsToTime !! i) arg))
-                putStrLn ("Play function " ++ show (i+1) ++ " time taken: " ++ show tm)
-                return tm
-            putStr (prettyStats stats)
-
-        Args ["play", "criterion"] [] -> do
-            let arg = Play.functionArgument
-            tmArg <- timer1WHNF (force arg)
-            putStrLn $ "Forcing argument took: " ++ show tmArg
-
-            let functions = zip Play.functionsToTime [1::Int ..]
-            forM_ functions $ \(func, i) -> do
-                putStrLn $ "Function " ++ show i ++ ": Warming up..."
-                tm <- timer1WHNF (force (func arg))
-                putStrLn $ "Running function " ++ show i ++ " took: " ++ show tm
-
-                Cr.benchmark (Cr.nf func arg)
+        Args ["play", "criterion"] [] -> entryPlayCriterion
 
         Args ["play", "fusion"] [index] -> do
             print (Play.fusionProgram (read index - 1))
 
-        -- Args ["testgpu"] [] -> do
-        --     testGPU
+        Args ["testgpu"] [] -> testGPU
 
         Args flags [inDir, outDir, testId, nrunsF', nrunsJ', timeLimit'] -> do
             let nrunsF = parseIntArg nrunsF'
