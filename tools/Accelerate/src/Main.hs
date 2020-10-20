@@ -5,7 +5,7 @@ module Main where
 import Control.DeepSeq (force)
 import Control.Monad (forM, forM_)
 import qualified Criterion as Cr
-import Data.List (tails)
+import Data.List (tails, findIndex)
 import Data.Monoid (Any(..))
 import System.Environment
 import System.FilePath
@@ -67,10 +67,11 @@ parseArgs = foldMap parseArg <$> getArgs
         parseArg arg = Args [] [arg]
 
 parseIndexMultiple :: String -> [Int]
-parseIndexMultiple input = case reads input of
-    [(i, "")] -> [i - 1]
-    [(n, 'x' : i')] -> replicate n (read i' - 1)
-    _ -> error $ "Cannot parse (Nx)?N from '" ++ show input ++ "'"
+parseIndexMultiple input
+  | Just idx <- findIndex (== 'x') input
+  = replicate (read (take idx input)) (read (drop (idx + 1) input) - 1)
+  | otherwise
+  = [read input - 1]
 
 entryPlayFunctions :: [String] -> IO ()
 entryPlayFunctions indices = do
