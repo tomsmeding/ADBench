@@ -2,7 +2,7 @@
 {-# OPTIONS -Wno-name-shadowing -Wno-unused-local-binds -Wno-unused-matches #-}
 module Playground.M4a (selectiveRecompute1) where
 
-import Prelude (id, seq)
+import Prelude (id)
 import Data.Array.Accelerate
 
 import GMMIO
@@ -115,7 +115,6 @@ selectiveRecompute1 input =
               (backpermute
                  (let I2 x0 x1 = shape a3 in I4 x0 (let I1 x2 = shape a0 in x2) x1 x1)
                  (\(I4 x0 x1 x2 x3) ->
-                    f 1.0 (T3 2.0 3.0 4.0) `seq`
                     if x2 > x3
                        then
                          I2 x1
