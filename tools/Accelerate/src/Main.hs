@@ -1,6 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
 module Main where
 
+import Control.Concurrent (threadDelay)
 import Control.DeepSeq (force)
 import Control.Monad (forM_)
 import qualified Criterion as Cr
@@ -52,8 +53,10 @@ parseArgs = foldMap parseArg <$> getArgs
 
 main :: IO ()
 main = do
+    -- threadDelay 20000000
+
     parseArgs >>= \case
-        Args ["play"] [] -> do
+        Args ["play"] indices -> do
             let benchmark descr value = do
                     tm <- timer1WHNF (force value)
                     putStrLn $ "Play " ++ descr ++ " time taken: " ++ show tm
@@ -61,11 +64,13 @@ main = do
             let arg = Play.functionArgument
             benchmark "argument" arg
 
-            let functions = zip Play.functionsToTime [1::Int ..]
+            let nfunctions = length Play.functionsToTime
+            let indices' | null indices = take (3 * nfunctions) (cycle [0::Int .. nfunctions - 1])
+                         | otherwise = map (pred . read) indices
 
             -- TODO: why does the first invocation take longer?
-            forM_ (take (3 * length functions) (cycle functions)) $ \(func, i) -> do
-                benchmark ("function " ++ show i) (func arg)
+            forM_ indices' $ \i -> do
+                benchmark ("function " ++ show (i+1)) ((Play.functionsToTime !! i) arg)
 
         Args ["play", "criterion"] [] -> do
             let arg = Play.functionArgument
@@ -73,14 +78,11 @@ main = do
             putStrLn $ "Forcing argument took: " ++ show tmArg
 
             let functions = zip Play.functionsToTime [1::Int ..]
-            putStrLn "Warming up..."
             forM_ functions $ \(func, i) -> do
+                putStrLn $ "Function " ++ show i ++ ": Warming up..."
                 tm <- timer1WHNF (force (func arg))
                 putStrLn $ "Running function " ++ show i ++ " took: " ++ show tm
 
-            putStrLn "Engaging criterion..."
-            forM_ functions $ \(func, i) -> do
-                putStrLn $ "Function " ++ show i ++ ":"
                 Cr.benchmark (Cr.nf func arg)
 
         Args ["play", "fusion1"] [] -> do
@@ -89,8 +91,8 @@ main = do
         Args ["play", "fusion2"] [] -> do
             print Play.fusionProgram2
 
-        Args ["testgpu"] [] -> do
-            testGPU
+        -- Args ["testgpu"] [] -> do
+        --     testGPU
 
         Args flags [inDir, outDir, testId, nrunsF', nrunsJ', timeLimit'] -> do
             let nrunsF = parseIntArg nrunsF'

@@ -9,8 +9,6 @@ module Playground.Support (
 
 import Data.Array.Accelerate
 
-import GMMIO
-
 
 cAll :: Exp All
 cAll = constant All

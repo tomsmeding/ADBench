@@ -12,7 +12,7 @@ import Control.DeepSeq (NFData(..))
 import Data.Array.Accelerate
 -- import qualified Data.Array.Accelerate.Interpreter as I
 import qualified Data.Array.Accelerate.LLVM.Native as CPU
-import qualified Data.Array.Accelerate.LLVM.PTX as GPU
+-- import qualified Data.Array.Accelerate.LLVM.PTX as GPU
 import System.IO.Unsafe (unsafePerformIO)
 
 import GMMIO
@@ -20,6 +20,7 @@ import Playground.M1
 import Playground.M2
 import Playground.M3
 import Playground.M4
+import Playground.M4a
 
 
 emptyInstance :: GMMIn
@@ -42,7 +43,7 @@ bigInstance = unsafePerformIO $ readInstance "../../data/gmm/1k/gmm_d32_K25.txt"
 
 {-# NOINLINE fusionProgram1 #-}
 fusionProgram1 :: Acc (Vector Float, Matrix Float, Matrix Float)
-fusionProgram1 = simplified (use emptyInstance)
+fusionProgram1 = selectiveRecompute (use emptyInstance)
 
 {-# NOINLINE fusionProgram2 #-}
 fusionProgram2 :: Acc (Vector Float, Matrix Float, Matrix Float)
@@ -54,18 +55,20 @@ data FunctionArgument
                        !(Acc GMMIn -> Acc (Vector Float, Matrix Float, Matrix Float))
                        !(Acc GMMIn -> Acc (Vector Float, Matrix Float, Matrix Float))
                        !(Acc GMMIn -> Acc (Vector Float, Matrix Float, Matrix Float))
+                       !(Acc GMMIn -> Acc (Vector Float, Matrix Float, Matrix Float))
 
 instance NFData FunctionArgument where
-    rnf (FunctionArgument input f1 f2 f3 f4) = rnf input `seq` f1 `seq` f2 `seq` f3 `seq` f4 `seq` ()
+    rnf (FunctionArgument input f1 f2 f3 f4 f5) = rnf input `seq` f1 `seq` f2 `seq` f3 `seq` f4 `seq` f5 `seq` ()
 
 {-# NOINLINE functionArgument #-}
 functionArgument :: FunctionArgument
-functionArgument = FunctionArgument bigInstance inputProgram simplified withShapeProp withoutExpTemps
+functionArgument = FunctionArgument bigInstance inputProgram simplified withShapeProp withoutExpTemps selectiveRecompute
 
 {-# NOINLINE functionsToTime #-}
 functionsToTime :: [FunctionArgument -> ()]
 functionsToTime =
-    [\(FunctionArgument input f1 _ _ _) -> GPU.run (f1 (use input)) `seq` ()
-    ,\(FunctionArgument input _ f2 _ _) -> GPU.run (f2 (use input)) `seq` ()
-    ,\(FunctionArgument input _ _ f3 _) -> GPU.run (f3 (use input)) `seq` ()
-    ,\(FunctionArgument input _ _ _ f4) -> GPU.run (f4 (use input)) `seq` ()]
+    [\(FunctionArgument input f1 _ _ _ _) -> CPU.run (f1 (use input)) `seq` ()
+    ,\(FunctionArgument input _ f2 _ _ _) -> CPU.run (f2 (use input)) `seq` ()
+    ,\(FunctionArgument input _ _ f3 _ _) -> CPU.run (f3 (use input)) `seq` ()
+    ,\(FunctionArgument input _ _ _ f4 _) -> CPU.run (f4 (use input)) `seq` ()
+    ,\(FunctionArgument input _ _ _ _ f5) -> CPU.run (f5 (use input)) `seq` ()]
