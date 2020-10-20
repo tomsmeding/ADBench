@@ -4,10 +4,11 @@
 module Playground (
     functionArgument,
     functionsToTime,
-    fusionProgram1, fusionProgram2
+    fusionProgram
 ) where
 
 import Prelude (seq)
+import qualified Prelude as P
 import Control.DeepSeq (NFData(..))
 import Data.Array.Accelerate
 -- import qualified Data.Array.Accelerate.Interpreter as I
@@ -21,6 +22,7 @@ import Playground.M2
 import Playground.M3
 import Playground.M4
 import Playground.M4a
+import Playground.M4b
 
 
 emptyInstance :: GMMIn
@@ -41,34 +43,25 @@ smallInstance = unsafePerformIO $ readInstance "../../data/gmm/1k/gmm_d2_K5.txt"
 bigInstance :: GMMIn
 bigInstance = unsafePerformIO $ readInstance "../../data/gmm/1k/gmm_d32_K25.txt" False
 
-{-# NOINLINE fusionProgram1 #-}
-fusionProgram1 :: Acc (Vector Float, Matrix Float, Matrix Float)
-fusionProgram1 = selectiveRecompute (use emptyInstance)
+{-# NOINLINE fusionProgram #-}
+fusionProgram :: Int -> Acc (Vector Float, Matrix Float, Matrix Float)
+fusionProgram i =
+    let PreparedFunc _ fs = functionArgument
+    in (fs P.!! i) (use emptyInstance)
 
-{-# NOINLINE fusionProgram2 #-}
-fusionProgram2 :: Acc (Vector Float, Matrix Float, Matrix Float)
-fusionProgram2 = withShapeProp (use emptyInstance)
+data PreparedFunc
+    = PreparedFunc !GMMIn
+                   [Acc GMMIn -> Acc (Vector Float, Matrix Float, Matrix Float)]
 
-data FunctionArgument
-    = FunctionArgument !GMMIn
-                       !(Acc GMMIn -> Acc (Vector Float, Matrix Float, Matrix Float))
-                       !(Acc GMMIn -> Acc (Vector Float, Matrix Float, Matrix Float))
-                       !(Acc GMMIn -> Acc (Vector Float, Matrix Float, Matrix Float))
-                       !(Acc GMMIn -> Acc (Vector Float, Matrix Float, Matrix Float))
-                       !(Acc GMMIn -> Acc (Vector Float, Matrix Float, Matrix Float))
-
-instance NFData FunctionArgument where
-    rnf (FunctionArgument input f1 f2 f3 f4 f5) = rnf input `seq` f1 `seq` f2 `seq` f3 `seq` f4 `seq` f5 `seq` ()
+instance NFData PreparedFunc where
+    rnf (PreparedFunc input fs) = rnf input `seq` rnf fs `seq` ()
 
 {-# NOINLINE functionArgument #-}
-functionArgument :: FunctionArgument
-functionArgument = FunctionArgument bigInstance inputProgram simplified withShapeProp withoutExpTemps selectiveRecompute
+functionArgument :: PreparedFunc
+functionArgument = PreparedFunc bigInstance [inputProgram, simplified, withShapeProp, withoutExpTemps, selectiveRecompute1, selectiveRecompute2]
 
 {-# NOINLINE functionsToTime #-}
-functionsToTime :: [FunctionArgument -> ()]
+functionsToTime :: [PreparedFunc -> ()]
 functionsToTime =
-    [\(FunctionArgument input f1 _ _ _ _) -> CPU.run (f1 (use input)) `seq` ()
-    ,\(FunctionArgument input _ f2 _ _ _) -> CPU.run (f2 (use input)) `seq` ()
-    ,\(FunctionArgument input _ _ f3 _ _) -> CPU.run (f3 (use input)) `seq` ()
-    ,\(FunctionArgument input _ _ _ f4 _) -> CPU.run (f4 (use input)) `seq` ()
-    ,\(FunctionArgument input _ _ _ _ f5) -> CPU.run (f5 (use input)) `seq` ()]
+    [\(PreparedFunc input fs) -> CPU.run ((fs P.!! i) (use input)) `seq` ()
+    | i <- [0..5]]

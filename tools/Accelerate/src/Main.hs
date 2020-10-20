@@ -3,7 +3,7 @@ module Main where
 
 import Control.Concurrent (threadDelay)
 import Control.DeepSeq (force)
-import Control.Monad (forM_)
+import Control.Monad (forM, forM_)
 import qualified Criterion as Cr
 import Data.List (tails)
 import Data.Monoid (Any(..))
@@ -26,6 +26,23 @@ testGPU = do
     print $ GPU.run prog
     inst <- readInstance "../../data/gmm/1k/gmm_d2_K5.txt" False
     print $ gmmObjective (gmmObjectiveProgram GPU inst) inst
+
+
+data Stats a = Stats { statsMean :: a, statsStddev :: a, statsStderr :: a }
+  deriving (Show)
+
+prettyStats :: (Show a, Floating a) => Stats a -> String
+prettyStats (Stats mu sdev serr) = unlines
+    ["Mean: " ++ show mu ++ " (stderr: " ++ show serr ++ ")"
+    ,"Stddev: " ++ show sdev]
+
+computeStats :: Floating a => [a] -> Stats a
+computeStats l =
+    let n' = fromIntegral (length l)
+        mu = sum l / n'
+        sdev = sum (map (\x -> (x - mu) * (x - mu)) l) / (n' - 1)
+        serr = sdev / sqrt n'
+    in Stats mu sdev serr
 
 
 writeTimes :: FilePath -> (Double, Double) -> IO ()
@@ -51,26 +68,36 @@ parseArgs = foldMap parseArg <$> getArgs
   where parseArg ('-':flag) = Args [flag] []
         parseArg arg = Args [] [arg]
 
+parseIndexMultiple :: String -> [Int]
+parseIndexMultiple input = case reads input of
+    [(i, "")] -> [i - 1]
+    [(n, 'x' : i')] -> replicate n (read i' - 1)
+    _ -> error $ "Cannot parse (Nx)?N from '" ++ show input ++ "'"
+
 main :: IO ()
 main = do
     -- threadDelay 20000000
 
     parseArgs >>= \case
         Args ["play"] indices -> do
-            let benchmark descr value = do
-                    tm <- timer1WHNF (force value)
-                    putStrLn $ "Play " ++ descr ++ " time taken: " ++ show tm
-
             let arg = Play.functionArgument
-            benchmark "argument" arg
+            argTm <- timer1WHNF (force arg)
+            putStrLn $ "Play argument time taken: " ++ show argTm
 
             let nfunctions = length Play.functionsToTime
             let indices' | null indices = take (3 * nfunctions) (cycle [0::Int .. nfunctions - 1])
-                         | otherwise = map (pred . read) indices
+                         | otherwise = concatMap parseIndexMultiple indices
 
             -- TODO: why does the first invocation take longer?
-            forM_ indices' $ \i -> do
-                benchmark ("function " ++ show (i+1)) ((Play.functionsToTime !! i) arg)
+            let warmupIndex = if null indices' then 0 else head indices'
+            warmupTm <- timer1WHNF (force ((Play.functionsToTime !! warmupIndex) arg))
+            putStrLn $ "Play warmup function " ++ show (warmupIndex+1) ++ " time taken: " ++ show warmupTm
+
+            stats <- fmap computeStats . forM indices' $ \i -> do
+                tm <- timer1WHNF (force ((Play.functionsToTime !! i) arg))
+                putStrLn ("Play function " ++ show (i+1) ++ " time taken: " ++ show tm)
+                return tm
+            putStr (prettyStats stats)
 
         Args ["play", "criterion"] [] -> do
             let arg = Play.functionArgument
@@ -85,11 +112,8 @@ main = do
 
                 Cr.benchmark (Cr.nf func arg)
 
-        Args ["play", "fusion1"] [] -> do
-            print Play.fusionProgram1
-
-        Args ["play", "fusion2"] [] -> do
-            print Play.fusionProgram2
+        Args ["play", "fusion"] [index] -> do
+            print (Play.fusionProgram (read index - 1))
 
         -- Args ["testgpu"] [] -> do
         --     testGPU

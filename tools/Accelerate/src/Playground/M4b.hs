@@ -1,19 +1,17 @@
 {-# LANGUAGE RebindableSyntax #-}
 {-# OPTIONS -Wno-name-shadowing -Wno-unused-local-binds -Wno-unused-matches #-}
-module Playground.M4a (selectiveRecompute1) where
+module Playground.M4b (selectiveRecompute2) where
 
-import Prelude (id, seq)
+import Prelude (id)
 import Data.Array.Accelerate
 
 import GMMIO
 import Playground.Support
 
 
--- Selectively recomputing specific primitives to promote fusion, based on
--- profiling with -ddump-exec and computing sizes manually.
-{-# NOINLINE selectiveRecompute1 #-}
-selectiveRecompute1 :: Acc GMMIn -> Acc (Vector Float, Matrix Float, Matrix Float)
-selectiveRecompute1 input =
+{-# NOINLINE selectiveRecompute2 #-}
+selectiveRecompute2 :: Acc GMMIn -> Acc (Vector Float, Matrix Float, Matrix Float)
+selectiveRecompute2 input =
     let
       GMMIn a0 a1 a2 a3 a4 a5 = input
       a6 :: Acc (Scalar (Float, (Int, Float)))
@@ -109,13 +107,11 @@ selectiveRecompute1 input =
       shape_a33 = I2 (let I1 x0 = shape a0 in x0) (let I2 x0 x1 = shape a2 in x1 - (let I2 x0 x1 = shape a3 in x1) + 1)
       a33 = map fst a32
       -- a34: n * k * d * d
-      a34f :: Elt a => (Exp Float -> Exp (Float, Float, Float) -> Exp a) -> Acc (Array DIM4 a)
-      a34f f = zipWith
-              (\x0 x1 -> let x2 = x0 * x1 in f x2 (T3 x0 x1 x2))
+      a34 = zipWith
+              (\x0 x1 -> let x2 = x0 * x1 in T2 x2 (T3 x0 x1 x2))
               (backpermute
                  (let I2 x0 x1 = shape a3 in I4 x0 (let I1 x2 = shape a0 in x2) x1 x1)
                  (\(I4 x0 x1 x2 x3) ->
-                    f 1.0 (T3 2.0 3.0 4.0) `seq`
                     if x2 > x3
                        then
                          I2 x1
@@ -127,7 +123,6 @@ selectiveRecompute1 input =
                        else I2 x1 0)
                  a33)
               (replicate (I4 cAll cAll (let I2 x0 x1 = shape a3 in x1) cAll) a30)
-      a34 = a34f (\x y -> T2 x y)
       shape_a35 :: Exp DIM4
       shape_a35 = shmin (let I2 x0 x1 = shape a3 in I4 x0 (let I1 x2 = shape a0 in x2) x1 x1)
                         (let I3 y0 y1 y2 = shape_a29 in I4 y0 y1 (let I2 x0 x1 = shape a3 in x1) y2)
@@ -269,14 +264,18 @@ selectiveRecompute1 input =
               (map fst a65)
               (map (\(T2 _ (T3 x0 x1 x2)) -> T3 x0 x1 x2) a36)
       a67 = map snd a65
-      a68 = zipWith
-              (\x0 (T3 x1 x2 x3) -> T2 (0.0 + x0 * x2) (x0 * x1 + 0.0))
-              (generate shape_a35 (\(I4 x0 x1 x2 _) -> a67 ! (I3 x0 x1 x2)))
-              (a34f (\_ d -> d))
+      a68_1 = zipWith
+                (\x0 (T3 x1 x2 x3) -> x0 * x2)
+                (generate shape_a35 (\(I4 x0 x1 x2 _) -> a67 ! (I3 x0 x1 x2)))
+                (map (\(T2 _ (T3 x0 x1 x2)) -> T3 x0 x1 x2) a34)
+      a68_2 = zipWith
+                (\x0 (T3 x1 x2 x3) -> x0 * x1)
+                (generate shape_a35 (\(I4 x0 x1 x2 _) -> a67 ! (I3 x0 x1 x2)))
+                (map (\(T2 _ (T3 x0 x1 x2)) -> T3 x0 x1 x2) a34)
       a69 = zipWith
               (\x0 (T3 x1 x2 x3) -> T2 (0.0 + x0) (-x0 + 0.0))
               (zipWith (+)
-                 (let a69 = map snd a68
+                 (let a69 = a68_2
                   in
                   fold1 (+)
                     (reshape
@@ -520,7 +519,7 @@ selectiveRecompute1 input =
                                                                        else T2 x1 0
                                                        in
                                                        Just_ (I2 x4 x5))
-                                                    (map fst a68))
+                                                    a68_1)
                                                  (map (\(T2 _ (T3 x0 x1 x2)) -> T3 x0 x1 x2) a32))))))
                                   (generate (shape a2) (\_ -> 0.0)))
                                (generate (shape a2) (\_ -> 0.0)))
