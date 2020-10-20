@@ -5,6 +5,8 @@ module Main where
 import Control.DeepSeq (force)
 import Control.Monad (forM, forM_)
 import qualified Criterion as Cr
+import qualified Criterion.Measurement as CM
+import qualified Criterion.Measurement.Types as CMT
 import Data.List (tails, findIndex)
 import Data.Monoid (Any(..))
 import System.Environment
@@ -73,8 +75,8 @@ parseIndexMultiple input
   | otherwise
   = [read input - 1]
 
-entryPlayFunctions :: [String] -> IO ()
-entryPlayFunctions indices = do
+entryPlayFunctions :: [String] -> Bool -> IO ()
+entryPlayFunctions indices useCriterion = do
     let arg = Play.prepare
     argTm <- timer1WHNF (force arg)
     putStrLn $ "Play argument + compilation time taken: " ++ show argTm
@@ -92,11 +94,19 @@ entryPlayFunctions indices = do
     performWarmup 1 warmupIndex
     performWarmup 2 warmupIndex
 
-    stats <- fmap computeStats . forM indices' $ \i -> do
-        tm <- timer1WHNF (force ((Play.functionsToTime !! i) arg))
-        putStrLn ("Play function " ++ show (i+1) ++ " time taken: " ++ show tm)
-        return tm
-    putStrLn (prettyStats stats)
+    if useCriterion
+        then do
+            forM_ indices' $ \i -> do
+                report <- CM.measure (CMT.nf (Play.functionsToTime !! i) arg) 1
+                putStrLn ("Play function " ++ show (i+1) ++ ":")
+                print report
+        else do
+            stats <- fmap computeStats . forM indices' $ \i -> do
+                tm <- timer1WHNF (force ((Play.functionsToTime !! i) arg))
+                putStrLn ("Play function " ++ show (i+1) ++ " time taken: " ++ show tm)
+                return tm
+            putStrLn (prettyStats stats)
+
 
 entryPlayFunctionsNoWarmup :: [String] -> IO ()
 entryPlayFunctionsNoWarmup indices = do
@@ -135,10 +145,11 @@ main = do
     -- threadDelay 20000000
 
     parseArgs >>= \case
-        Args ["play"] indices -> entryPlayFunctions indices
+        Args ["play"] indices -> entryPlayFunctions indices False
+        Args ["play", "criterion"] indices -> entryPlayFunctions indices True
         Args ["play", "nowarm"] indices -> entryPlayFunctionsNoWarmup indices
 
-        Args ["play", "criterion"] [] -> entryPlayCriterion
+        Args ["play", "benchmark"] [] -> entryPlayCriterion
 
         Args ["play", "fusion"] [index] -> do
             print (Play.fusionProgram (read index - 1))
