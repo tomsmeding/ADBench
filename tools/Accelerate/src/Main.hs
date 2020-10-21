@@ -86,14 +86,14 @@ entryPlayFunctions indices showGC = do
                  | otherwise = concatMap parseIndexMultiple indices
 
     -- TODO: why do the first invocations take longer?
-    -- let warmupIndex = if null indices' then 0 else last indices'
-    --     {-# NOINLINE performWarmup #-}
-    --     performWarmup times idx = do
-    --         let (name, func) = Play.functionsToTime !! idx
-    --         warmupTm <- timer1WHNF (force (func arg))
-    --         putStrLn $ "Play warmup(" ++ show (times::Int) ++ ") function " ++ show (warmupIndex+1) ++ " (" ++ name ++ ") time taken: " ++ show warmupTm
+    let warmupIndex = if null indices' then 0 else last indices'
+        {-# NOINLINE performWarmup #-}
+        performWarmup times idx = do
+            let (name, func) = Play.functionsToTime !! idx
+            warmupTm <- timer1WHNF (force (func arg))
+            putStrLn $ "Play warmup(" ++ show (times::Int) ++ ") function " ++ show (warmupIndex+1) ++ " (" ++ name ++ ") time taken: " ++ show warmupTm
 
-    -- forM_ [1..3] $ \i -> performWarmup i warmupIndex
+    forM_ [1..3] $ \i -> performWarmup i warmupIndex
 
     if showGC
         then do
