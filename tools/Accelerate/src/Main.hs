@@ -76,7 +76,7 @@ parseIndexMultiple input
   = [read input - 1]
 
 entryPlayFunctions :: [String] -> Bool -> IO ()
-entryPlayFunctions indices useCriterion = do
+entryPlayFunctions indices showGC = do
     let arg = Play.prepare
     argTm <- timer1WHNF (force arg)
     putStrLn $ "Play argument + compilation time taken: " ++ show argTm
@@ -86,24 +86,27 @@ entryPlayFunctions indices useCriterion = do
                  | otherwise = concatMap parseIndexMultiple indices
 
     -- TODO: why do the first invocations take longer?
-    let warmupIndex = if null indices' then 0 else head indices'
-        performWarmup times idx = do
-            warmupTm <- timer1WHNF (force ((Play.functionsToTime !! idx) arg))
-            putStrLn $ "Play warmup(" ++ show (times::Int) ++ ") function " ++ show (warmupIndex+1) ++ " time taken: " ++ show warmupTm
+    -- let warmupIndex = if null indices' then 0 else last indices'
+    --     {-# NOINLINE performWarmup #-}
+    --     performWarmup times idx = do
+    --         let (name, func) = Play.functionsToTime !! idx
+    --         warmupTm <- timer1WHNF (force (func arg))
+    --         putStrLn $ "Play warmup(" ++ show (times::Int) ++ ") function " ++ show (warmupIndex+1) ++ " (" ++ name ++ ") time taken: " ++ show warmupTm
 
-    performWarmup 1 warmupIndex
-    performWarmup 2 warmupIndex
+    -- forM_ [1..3] $ \i -> performWarmup i warmupIndex
 
-    if useCriterion
+    if showGC
         then do
             forM_ indices' $ \i -> do
-                report <- CM.measure (CMT.nf (Play.functionsToTime !! i) arg) 1
-                putStrLn ("Play function " ++ show (i+1) ++ ":")
+                let (name, func) = Play.functionsToTime !! i
+                report <- CM.measure (CMT.nf func arg) 1
+                putStrLn ("Play function " ++ show (i+1) ++ " (" ++ name ++ "):")
                 print report
         else do
             stats <- fmap computeStats . forM indices' $ \i -> do
-                tm <- timer1WHNF (force ((Play.functionsToTime !! i) arg))
-                putStrLn ("Play function " ++ show (i+1) ++ " time taken: " ++ show tm)
+                let (name, func) = Play.functionsToTime !! i
+                tm <- timer1WHNF (force (func arg))
+                putStrLn ("Play function " ++ show (i+1) ++ " (" ++ name ++ ")" ++ " time taken: " ++ show tm)
                 return tm
             putStrLn (prettyStats stats)
 
@@ -121,8 +124,9 @@ entryPlayFunctionsNoWarmup indices = do
     putStrLn "Not caching compilation results!"
 
     stats <- fmap computeStats . forM indices' $ \i -> do
-        tm <- timer1WHNF (force ((Play.functionsToTimeUncached !! i) arg))
-        putStrLn ("Play function " ++ show (i+1) ++ " time taken: " ++ show tm)
+        let (name, func) = Play.functionsToTimeUncached !! i
+        tm <- timer1WHNF (force (func arg))
+        putStrLn ("Play function " ++ show (i+1) ++ " (" ++ name ++ ") time taken: " ++ show tm)
         return tm
     putStrLn (prettyStats stats)
 
@@ -133,10 +137,10 @@ entryPlayCriterion = do
     putStrLn $ "Forcing argument + compilation took: " ++ show tmArg
 
     let functions = zip Play.functionsToTime [1::Int ..]
-    forM_ functions $ \(func, i) -> do
-        putStrLn $ "Function " ++ show i ++ ": Warming up..."
+    forM_ functions $ \((name, func), i) -> do
+        putStrLn $ "Function " ++ show i ++ " (" ++ name ++ "): Warming up..."
         tm <- timer1WHNF (force (func arg))
-        putStrLn $ "Running function " ++ show i ++ " took: " ++ show tm
+        putStrLn $ "Running function " ++ show i ++ " (" ++ name ++ ") took: " ++ show tm
 
         Cr.benchmark (Cr.nf func arg)
 
@@ -146,8 +150,12 @@ main = do
 
     parseArgs >>= \case
         Args ["play"] indices -> entryPlayFunctions indices False
-        Args ["play", "criterion"] indices -> entryPlayFunctions indices True
+        Args ["play", "gc"] indices -> entryPlayFunctions indices True
         Args ["play", "nowarm"] indices -> entryPlayFunctionsNoWarmup indices
+
+        Args ["play", "benchmark10"] [] ->
+            forM_ [1 .. length Play.functionsToTime] $ \i ->
+                entryPlayFunctions (replicate 10 (show i)) False
 
         Args ["play", "benchmark"] [] -> entryPlayCriterion
 
