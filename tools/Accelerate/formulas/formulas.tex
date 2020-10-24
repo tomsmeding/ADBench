@@ -124,10 +124,11 @@ Define the following functions:
 \mathrm{project}(\overset3{\bm{r}}, \overset3{\bm{c}}, \overset1f, \overset2{\bm{x}_0}, \overset2{\bm{\kappa}}, \overset3{\bm{x}}) &=
 	\mathrm{distort}(\bm{\kappa}, \mathrm{p2e}(\mathrm{rodriguez}(\bm{r}, \bm{x} - \bm{c}))) f + \bm{x}_0 \in \R^2 \\
 \mathrm{reprojerr}(\overset3{\bm{r}}, \overset3{\bm{c}}, \overset1f, \overset2{\bm{x}_0}, \overset2{\bm{\kappa}}, \overset3{\bm{x}}, \overset1w, \overset2{\bm{m}}) &=
-	w(\bm{m} - \mathrm{project}(\bm{r}, \bm{c}, f, \bm{x}_0, \bm{\kappa}, \bm{x})) \in \R^2 \\
+	w(\mathrm{project}(\bm{r}, \bm{c}, f, \bm{x}_0, \bm{\kappa}, \bm{x}) - \bm{m}) \in \R^2 \\
 \mathrm{werr}(\overset1w) &=
 	1 - w^2 \in \R
 \end{align*}
+(Note in particular the negation of `reprojerr' as compared to the \v{S}rajer paper.)
 
 Objective function:
 \begin{align*}
