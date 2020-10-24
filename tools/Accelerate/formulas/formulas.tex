@@ -17,6 +17,7 @@
 \newcommand\R{\mathbb R}
 \newcommand\Z{\mathbb Z}
 \newcommand\ra\rightarrow
+\renewcommand\mod{\;\mathop{\mathrm{mod}}\;}
 \let\oldepsilon\epsilon \let\epsilon\varepsilon \let\varepsilon\oldepsilon
 \let\oldphi\phi \let\phi\varphi \let\varphi\oldphi
 \let\oldemptyset\emptyset \let\emptyset\varnothing \let\varnothing\oldemptyset
@@ -24,6 +25,8 @@
 \newcommand\logsumexp{\operatorname*{logsumexp}}
 \newcommand\sumf{\operatorname*{sum}}
 \newcommand\MultiGamma{\operatorname*{MultiGamma}}
+\newcommand\append{\mathop{+\mkern-4mu+}}
+\newcommand\flatten[1]{{(\rightsquigarrow\!#1)}}
 \newcommand\precomptext[1]{\colorbox[rgb]{0.9,0.9,1}{#1}}
 \newcommand\precomp[1]{\precomptext{$\displaystyle#1$}}
 
@@ -77,5 +80,72 @@ and $\log\MultiGamma$ is SciPy's \texttt{scipy.special.multigammaln}\footnote{\u
 &= \tfrac14 d(d-1) \log(\pi) + \sum_{i=1}^d \log\Gamma(a - (i-1)/2)
 \end{align*}
 and $\log\Gamma$ is generally implemented in \texttt{lgamma} for real arguments.
+
+
+\newpage
+
+\section{BA: Bundle Adjustment}
+
+Input from file:
+\begin{itemize}
+\item $N, M, P \in \Z_{>0}$
+\item $\mathit{onecam} \in \R^{11}$;
+	$\mathit{onept} \in \R^3$;
+	$w \in \R$;
+	$\mathit{feat} \in \R^2$
+\end{itemize}
+
+Precompute the following:
+\begin{itemize}
+\item $\bm{C} \in \R^{n \times 11}$ ;
+		$\bm{C}[i][..] = \mathit{onecam}$
+\item $\bm{X} \in \R^{m \times 3}$ ;
+		$\bm{X}[i][..] = \mathit{onept}$
+\item $\bm{w} \in \R^p$ ;
+		$\bm{w}[i] = w$
+\item $\bm{F} \in \R^{p \times 2}$ ;
+		$\bm{F}[i][..] = \mathit{feat}$
+\item $\mathit{obs} \in \R^{p \times 2}$ ;
+		$\mathit{obs}[i] = [((i - 1) \mod N) + 1, ((i - 1) \mod M) + 1]$
+\end{itemize}
+
+Define the following functions:
+\begin{align*}
+\mathrm{rodriguez}(\overset3{\bm{r}}, \overset3{\bm{x}}) &=
+	\mathrm{\underline{let}}\ \theta = \lVert \bm{r} \rVert,
+					\bm{v} = \bm{r} / \lVert \bm{r} \rVert \\
+	&\phantom{=}\;\ \mathrm{\underline{in}}\ \bm{x} \cos \theta + (\bm{v} \times \bm{x}) \sin \theta + \bm{v} (\bm{v} \cdot \bm{x}) (1 - \cos \theta) \in \R^3 \\
+\mathrm{rodriguez}(\overset3{\bm{r}}=[0,0,0], \overset3{\bm{x}}) &=
+	\bm{x} + (\bm{r} \times \bm{x}) \\
+\mathrm{p2e}(\overset3{\bm{x}}) &=
+	[x_1 / x_3, x_2 / x_3] \in \R^2 \\
+\mathrm{distort}(\overset2{\bm{\kappa}}, \overset2{\bm{u}}) &=
+	\bm{u}(1 + \kappa_1 \lVert \bm{u} \rVert^2 + \kappa_2 \lVert \bm{u} \rVert^4) \in \R^2 \\
+\mathrm{project}(\overset3{\bm{r}}, \overset3{\bm{c}}, \overset1f, \overset2{\bm{x}_0}, \overset2{\bm{\kappa}}, \overset3{\bm{x}}) &=
+	\mathrm{distort}(\bm{\kappa}, \mathrm{p2e}(\mathrm{rodriguez}(\bm{r}, \bm{x} - \bm{c}))) f + \bm{x}_0 \in \R^2 \\
+\mathrm{reprojerr}(\overset3{\bm{r}}, \overset3{\bm{c}}, \overset1f, \overset2{\bm{x}_0}, \overset2{\bm{\kappa}}, \overset3{\bm{x}}, \overset1w, \overset2{\bm{m}}) &=
+	w(\bm{m} - \mathrm{project}(\bm{r}, \bm{c}, f, \bm{x}_0, \bm{\kappa}, \bm{x})) \in \R^2 \\
+\mathrm{werr}(\overset1w) &=
+	1 - w^2 \in \R
+\end{align*}
+
+Objective function:
+\begin{align*}
+&\mathrm{reproj\mathunderscore{}error} \in \R^{p \times 2} ; \\
+&\mathrm{reproj\mathunderscore{}error}[i][..] = \mathrm{reprojerr}(\bm{C}[i][1..3], \bm{C}[i][4..6], \bm{C}[i][7], \bm{C}[i][8..9], \bm{C}[i][10..11], \bm{X}[i], \bm{w}[i], \bm{F}[i]) \\
+&\mathrm{w\mathunderscore{}error} \in \R^p ;
+\mathrm{w\mathunderscore{}error}[i] = \mathrm{werr}(\bm{w}[i])
+\end{align*}
+
+Jacobian matrix:
+\begin{align*}
+\mathrm{J} \in \R^{(2p + p) \times (11n + 3m + p)} ;\;
+J[i][j] = \frac{\partial (\mathrm{reproj\mathunderscore{}error} \append \mathrm{w\mathunderscore{}error})_i}{\partial (\flatten{\bm{C}} \append \flatten{\bm{X}} \append \bm{w})_j}
+\end{align*}
+where $\flatten{\bm{C}}$ means to flatten $\bm{C}$ in row-major order.
+For example, $\flatten{\bm{C}} \in \R^{11n}$ contains $n$ blocks of $11$ scalars.
+This Jacobian is sparse, and to be represented in CSR format, where only entries that are statically known to be zero are omitted.
+The \v{S}rajer paper shows a diagram of the sparsity pattern.
+
 
 \end{document}
