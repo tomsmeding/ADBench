@@ -15,6 +15,7 @@ executable adbench-accelerate-gmm
   build-depends:       base >= 4.13 && < 4.15,
                        accelerate,
                        accelerate-llvm-native,
+                       accelerate-llvm-ptx,
                        filepath,
                        criterion >= 1.5.7 && < 1.6,
                        criterion-measurement >= 0.1.2 && < 0.2,

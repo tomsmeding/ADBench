@@ -179,7 +179,7 @@ main = do
                 outJPath = outDir </> testId ++ "_J_" ++ progName <.> "txt"
                 outTimesPath = outDir </> testId ++ "_times_" ++ progName <.> "txt"
 
-            input <- readInstance inPath replicatePoint
+            input <- gmmReadInstance inPath replicatePoint
             timeImport <- timer1WHNF input  -- WHNF is sufficient because GMMIn has strict fields
             putStrLn $ "Importing took " ++ show timeImport ++ " seconds"
 
@@ -198,7 +198,7 @@ main = do
             timeJac <- if nrunsJ > 0
                 then do
                     (timeJac, output) <- timer (gmmObjectiveGrad compiledGrad) input nrunsJ timeLimit
-                    writeJacobian outJPath output
+                    gmmWriteJacobian outJPath output
                     return timeJac
                 else return 0
 

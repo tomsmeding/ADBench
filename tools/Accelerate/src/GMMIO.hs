@@ -2,16 +2,11 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE PatternSynonyms #-}
-
-{-# LANGUAGE ScopedTypeVariables #-}
 module GMMIO (
     GMMIn(..), pattern GMMIn,
     GMMOut(..), pattern GMMOut,
-    readInstance,
-    writeJacobian,
-
-    -- re-exports
-    Identity(..)
+    gmmReadInstance,
+    gmmWriteJacobian,
 ) where
 
 import Control.Arrow (first)
@@ -23,7 +18,6 @@ import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lex.Fractional as BSLex
 import Data.List (uncons)
 import Data.Maybe (fromJust)
-import Data.Functor.Identity
 import System.IO
 
 import Types
@@ -72,8 +66,8 @@ pattern GMMOut :: Acc (Vector FLT)
 pattern GMMOut a mu i = Pattern (a, mu, i)
 {-# COMPLETE GMMOut #-}
 
-readInstance :: FilePath -> Bool -> IO GMMIn
-readInstance fpath replicatePoint = do
+gmmReadInstance :: FilePath -> Bool -> IO GMMIn
+gmmReadInstance fpath replicatePoint = do
     terms <- BS.words <$> BS.readFile fpath
     let bsReadInt   = fst . fromJust . BS.readInt
         bsReadFloat = fst . fromJust . BSLex.readSigned BSLex.readDecimal
@@ -100,8 +94,8 @@ readInstance fpath replicatePoint = do
                     , gmmInWisM     = arr0D m
                     }
 
-writeJacobian :: FilePath -> GMMOut -> IO ()
-writeJacobian fpath out =
+gmmWriteJacobian :: FilePath -> GMMOut -> IO ()
+gmmWriteJacobian fpath out =
     let values = concat [A.toList (gmmOutAlphas out)
                         ,A.toList (gmmOutMeans out)
                         ,A.toList (gmmOutICF out)]

@@ -43,10 +43,10 @@ emptyInstance =
               (A.fromList @_ @Int dim0 [0])
 
 smallInstance :: GMMIn
-smallInstance = unsafePerformIO $ readInstance "../../data/gmm/1k/gmm_d2_K5.txt" False
+smallInstance = unsafePerformIO $ gmmReadInstance "../../data/gmm/1k/gmm_d2_K5.txt" False
 
 bigInstance :: GMMIn
-bigInstance = unsafePerformIO $ readInstance "../../data/gmm/1k/gmm_d32_K25.txt" False
+bigInstance = unsafePerformIO $ gmmReadInstance "../../data/gmm/1k/gmm_d32_K25.txt" False
 
 programs :: [(String, Acc GMMIn -> Acc (Vector Float, Matrix Float, Matrix Float))]
 programs = [("M1", inputProgram)
