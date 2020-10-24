@@ -1,7 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiWayIf #-}
 module Main where
 
--- import Control.Concurrent (threadDelay)
 import Control.DeepSeq (force)
 import Control.Monad (forM, forM_)
 import qualified Criterion as Cr
@@ -26,7 +26,7 @@ testGPU :: IO ()
 testGPU = do
     let prog = A.sum (A.generate (A.I1 1000000) (\(A.I1 i) -> A.toFloating i :: A.Exp Float))
     print $ GPU.run prog
-    inst <- readInstance "../../data/gmm/1k/gmm_d2_K5.txt" False
+    inst <- gmmReadInstance "../../data/gmm/1k/gmm_d2_K5.txt" False
     print $ gmmObjective (gmmObjectiveProgram GPU inst) inst
 
 
@@ -146,8 +146,6 @@ entryPlayCriterion = do
 
 main :: IO ()
 main = do
-    -- threadDelay 20000000
-
     parseArgs >>= \case
         Args ["play"] indices -> entryPlayFunctions indices False
         Args ["play", "gc"] indices -> entryPlayFunctions indices True
@@ -175,7 +173,9 @@ main = do
                 backendKind = if useGPU then GPU else CPU
 
             let inPath = inDir </> testId <.> "txt"
-                progName = if "Accelerate1" `isSubstr` outDir then "Accelerate1" else "Accelerate"
+                progName = if | "Accelerate1" `isSubstr` outDir -> "Accelerate1"
+                              | "AccelerateGPU" `isSubstr` outDir -> "AccelerateGPU"
+                              | otherwise -> "Accelerate"
                 outJPath = outDir </> testId ++ "_J_" ++ progName <.> "txt"
                 outTimesPath = outDir </> testId ++ "_times_" ++ progName <.> "txt"
 

@@ -5,15 +5,24 @@ author:              Tom Smeding
 maintainer:          tom.smeding@gmail.com
 build-type:          Simple
 
+library adbench-accelerate-utils
+  exposed-modules:     Timer, Types
+  build-depends:       base >= 4.13 && < 4.15,
+                       criterion-measurement >= 0.1.2 && < 0.2,
+                       deepseq
+  hs-source-dirs:      utils
+  default-language:    Haskell2010
+  ghc-options:         -Wall -O2
+
 executable adbench-accelerate-gmm
-  main-is:             Main.hs
-  other-modules:       GMM, GMMIO, Timer, Types, Playground,
+  main-is:             MainGMM.hs
+  other-modules:       GMM, GMMIO, Playground,
                        Playground.M1, Playground.M2, Playground.M3, Playground.M4,
                        Playground.M4a, Playground.M4b,
                        Playground.M1N, Playground.M4N,
-                       Playground.Support,
-                       BAIO, BA
-  build-depends:       base >= 4.13 && < 4.15,
+                       Playground.Support
+  build-depends:       adbench-accelerate-utils,
+                       base >= 4.13 && < 4.15,
                        accelerate,
                        accelerate-llvm-native,
                        accelerate-llvm-ptx,
@@ -22,6 +31,23 @@ executable adbench-accelerate-gmm
                        criterion-measurement >= 0.1.2 && < 0.2,
                        deepseq,
                        math-functions >= 0.3 && < 0.4,
+                       bytestring >= 0.10.10 && < 0.12,
+                       bytestring-lexing >= 0.5.0.2 && < 0.6,
+                       double-conversion >= 2.0.2 && < 2.1
+  hs-source-dirs:      src
+  default-language:    Haskell2010
+  ghc-options:         -Wall -O2 -threaded -rtsopts
+
+executable adbench-accelerate-ba
+  main-is:             MainBA.hs
+  other-modules:       BAIO, BA
+  build-depends:       adbench-accelerate-utils,
+                       base >= 4.13 && < 4.15,
+                       accelerate,
+                       accelerate-llvm-native,
+                       -- accelerate-llvm-ptx,
+                       filepath,
+                       deepseq,
                        bytestring >= 0.10.10 && < 0.12,
                        bytestring-lexing >= 0.5.0.2 && < 0.6,
                        double-conversion >= 2.0.2 && < 2.1
