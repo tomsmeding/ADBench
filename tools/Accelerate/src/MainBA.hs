@@ -75,6 +75,7 @@ main = do
                 progName = if | "Accelerate1" `isSubstr` outDir -> "Accelerate1"
                               | "AccelerateGPU" `isSubstr` outDir -> "AccelerateGPU"
                               | otherwise -> "Accelerate"
+                outFPath = outDir </> testId ++ "_F_" ++ progName <.> "txt"
                 outJPath = outDir </> testId ++ "_J_" ++ progName <.> "txt"
                 outTimesPath = outDir </> testId ++ "_times_" ++ progName <.> "txt"
 
@@ -87,7 +88,7 @@ main = do
             putStrLn $ "Compilation of function took " ++ show timeFCompile ++ " seconds"
 
             (timeFunc, output1) <- timer (baObjective compiledFunc) input nrunsF timeLimit
-            print output1
+            baWriteFunctionOutput outFPath output1
             putStrLn $ "Time taken: " ++ show timeFunc
 
             let compiledJac = baObjectiveJacProgram backendKind

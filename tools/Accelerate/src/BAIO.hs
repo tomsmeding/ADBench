@@ -10,6 +10,7 @@ module BAIO (
     BAOut(..), pattern BAOut,
     Pt3D, Pt2D,
     baReadInstance,
+    baWriteFunctionOutput,
     baWriteJacobian
 ) where
 
@@ -122,6 +123,19 @@ baReadInstance fpath = do
                    , baInObs   = A.fromFunction (Z :. p) $
                                     \(Z :. i) -> Observation_ (i `rem` n) (i `rem` m)
                    }
+
+baWriteFunctionOutput :: FilePath -> BAFVal -> IO ()
+baWriteFunctionOutput fpath fval =
+    let reprojErrs = concatMap (\(x,y) -> [x,y]) (A.toList (baFValReprojErr fval))
+        wErrs = A.toList (baFValWErr fval)
+    in withFile fpath WriteMode $ \f -> do
+        hPutStrLn f "Reprojection error:"
+        BS.hPut f $ BS.intercalate (BS.pack [10]) (map (toFixed 15 . realToFrac) reprojErrs)
+        hPutStrLn f ""
+
+        hPutStrLn f "Zach weight error:"
+        BS.hPut f $ BS.intercalate (BS.pack [10]) (map (toFixed 15 . realToFrac) wErrs)
+        hPutStrLn f ""
 
 baWriteJacobian :: FilePath -> BAIn -> BAOut -> IO ()
 baWriteJacobian fpath input out =
