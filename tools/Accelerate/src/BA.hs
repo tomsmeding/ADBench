@@ -48,9 +48,10 @@ cross (T3 a b c) (T3 x y z) = T3 (b*z - c*y) (c*x - a*z) (a*y - b*x)
 
 rodriguez :: Exp Pt3D -> Exp Pt3D -> Exp Pt3D
 rodriguez r@(T3 r1 r2 r3) x =
-    let theta = r1 * r1 + r2 * r2 + r3 * r3
+    let sqtheta = r1 * r1 + r2 * r2 + r3 * r3
+        theta = sqrt sqtheta
         v = T3 (r1 / theta) (r2 / theta) (r3 / theta)
-    in cond (theta == 0)
+    in cond (sqtheta == 0)
             (x `vecadd` cross r x)
             (scale (cos theta) x
                 `vecadd` scale (sin theta) (cross v x)
@@ -69,7 +70,7 @@ project (Camera r c f x0 kappa) x =
     scale f (distort kappa (p2e (rodriguez r (x `vecsub` c)))) `vecadd` x0
 
 reprojerr :: Exp Camera -> Exp Pt3D -> Exp FLT -> Exp Pt2D -> Exp Pt2D
-reprojerr cam x w m = scale w (m `vecsub` project cam x)
+reprojerr cam x w m = scale w (project cam x `vecsub` m)
 
 werr :: Exp FLT -> Exp FLT
 werr w = 1 - w * w
