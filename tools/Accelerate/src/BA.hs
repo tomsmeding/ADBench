@@ -89,7 +89,7 @@ objective (BAIn cams pts ws feats obs) =
 --   - p: d(w_error) / d(w_i)
 jacobianPacked :: Acc BAIn -> Acc (Matrix FLT, Matrix FLT, Vector FLT, Vector FLT)
 jacobianPacked (BAIn cams pts ws feats obs) =
-    let I1 p = shape pts
+    let I1 p = shape obs
         grads :: Acc (Vector ((Camera, Camera), (Pt3D, Pt3D), (FLT, FLT)))
         grads = map (\(T2 i (Observation ci pi)) ->
                         let T4 dcam1 dpt1 dw1 _ =

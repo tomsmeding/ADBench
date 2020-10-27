@@ -66,10 +66,13 @@ main = do
             let nrunsF = parseIntArg nrunsF'
                 nrunsJ = parseIntArg nrunsJ'
                 timeLimit = parseIntArg timeLimit'
-                parseFlag "gpu" = Any True
-                parseFlag _ = error "Expected '-gpu' or nothing as 7th argument"
-                Any useGPU = foldMap parseFlag flags
-                backendKind = if useGPU then GPU else CPU
+                parseFlag "inter" = (Any True, Any False)
+                parseFlag "gpu" = (Any False, Any True)
+                parseFlag _ = error "Expected '-inter', '-gpu' or nothing as 7th argument"
+                (Any useInter, Any useGPU) = foldMap parseFlag flags
+                backendKind | useInter = Interpreter
+                            | useGPU = GPU
+                            | otherwise = CPU
 
             let inPath = inDir </> testId <.> "txt"
                 progName = if | "Accelerate1" `isSubstr` outDir -> "Accelerate1"
