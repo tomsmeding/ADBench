@@ -24,6 +24,8 @@ if [[ $# -ge 2 ]]; then
         binarydir1="$binarydirPrefix/Accelerate1"
         binarydirGPU="$binarydirPrefix/AccelerateGPU"
         binarydirRecomp="$binarydirPrefix/AccelerateRecomp"
+        binarydirRecomp1="$binarydirPrefix/AccelerateRecomp1"
+        binarydirRecompGPU="$binarydirPrefix/AccelerateRecompGPU"
     fi
 fi
 
@@ -31,7 +33,9 @@ echo "Source directory: '$sourcedir'"
 echo "Binary directory: CPU: '$binarydir'"
 [[ -n $binarydir1 ]] && echo "                  1-thread: '$binarydir1'"
 [[ -n $binarydirGPU ]] && echo "                  GPU: '$binarydirGPU'"
-[[ -n $binarydirRecomp ]] && echo "                  Recomp: '$binarydirRecomp'"
+[[ -n $binarydirRecomp ]] && echo "                  CPU Recomp: '$binarydirRecomp'"
+[[ -n $binarydirRecomp1 ]] && echo "                  1-thread recomp: '$binarydirRecomp1'"
+[[ -n $binarydirRecompGPU ]] && echo "                  GPU recomp: '$binarydirRecompGPU'"
 
 cd "$sourcedir"
 
@@ -55,7 +59,7 @@ if [[ -n $binarydir1 ]]; then
     mkdir -p "$binarydir1"
     function create_1thread_launcher() {
         local id="$1"
-        printf >"$binarydir1/Tools-Accelerate1-$id.exe" '#!/usr/bin/env bash\nenv ACCELERATE_LLVM_NATIVE_THREADS=1 "$(dirname "$0")"/../Accelerate/adbench-accelerate-'"$id"' "$@"'
+        printf >"$binarydir1/Tools-Accelerate1-$id.exe" '#!/usr/bin/env bash\nenv ACCELERATE_AD_SMALLFUNSIZE=0 ACCELERATE_LLVM_NATIVE_THREADS=1 "$(dirname "$0")"/../Accelerate/adbench-accelerate-'"$id"' "$@"'
         chmod +x "$binarydir1/Tools-Accelerate1-$id.exe"
     }
     create_1thread_launcher "GMM-FULL"
@@ -65,7 +69,7 @@ if [[ -n $binarydirGPU ]]; then
     mkdir -p "$binarydirGPU"
     function create_gpu_launcher() {
         local id="$1"
-        printf >"$binarydirGPU/Tools-AccelerateGPU-$id.exe" '#!/usr/bin/env bash\n"$(dirname "$0")"/../Accelerate/adbench-accelerate-'"$id"' -gpu "$@"'
+        printf >"$binarydirGPU/Tools-AccelerateGPU-$id.exe" '#!/usr/bin/env bash\nenv ACCELERATE_AD_SMALLFUNSIZE=0 "$(dirname "$0")"/../Accelerate/adbench-accelerate-'"$id"' -gpu "$@"'
         chmod +x "$binarydirGPU/Tools-AccelerateGPU-$id.exe"
     }
     create_gpu_launcher "GMM-FULL"
@@ -75,9 +79,29 @@ if [[ -n $binarydirRecomp ]]; then
     mkdir -p "$binarydirRecomp"
     function create_recomp_launcher() {
         local id="$1"
-        printf >"$binarydirRecomp/Tools-AccelerateRecomp-$id.exe" '#!/usr/bin/env bash\nenv ACCELERATE_AD_SMALLFUNSIZE=9999 "$(dirname "$0")"/../Accelerate/adbench-accelerate-'"$id"' "$@"'
+        printf >"$binarydirRecomp/Tools-AccelerateRecomp-$id.exe" '#!/usr/bin/env bash\nenv ACCELERATE_AD_SMALLFUNSIZE=99999999 "$(dirname "$0")"/../Accelerate/adbench-accelerate-'"$id"' "$@"'
         chmod +x "$binarydirRecomp/Tools-AccelerateRecomp-$id.exe"
     }
     create_recomp_launcher "GMM-FULL"
     create_recomp_launcher "BA"
+fi
+if [[ -n $binarydirRecomp1 ]]; then
+    mkdir -p "$binarydirRecomp1"
+    function create_recomp1_launcher() {
+        local id="$1"
+        printf >"$binarydirRecomp1/Tools-AccelerateRecomp1-$id.exe" '#!/usr/bin/env bash\nenv ACCELERATE_AD_SMALLFUNSIZE=99999999 ACCELERATE_LLVM_NATIVE_THREADS=1 "$(dirname "$0")"/../Accelerate/adbench-accelerate-'"$id"' "$@"'
+        chmod +x "$binarydirRecomp1/Tools-AccelerateRecomp1-$id.exe"
+    }
+    create_recomp1_launcher "GMM-FULL"
+    create_recomp1_launcher "BA"
+fi
+if [[ -n $binarydirRecompGPU ]]; then
+    mkdir -p "$binarydirRecompGPU"
+    function create_recompgpu_launcher() {
+        local id="$1"
+        printf >"$binarydirRecompGPU/Tools-AccelerateRecompGPU-$id.exe" '#!/usr/bin/env bash\nenv ACCELERATE_AD_SMALLFUNSIZE=99999999 "$(dirname "$0")"/../Accelerate/adbench-accelerate-'"$id"' -gpu "$@"'
+        chmod +x "$binarydirRecompGPU/Tools-AccelerateRecompGPU-$id.exe"
+    }
+    create_recompgpu_launcher "GMM-FULL"
+    create_recompgpu_launcher "BA"
 fi
