@@ -14,6 +14,7 @@ import Control.DeepSeq (NFData)
 import Data.Array.Accelerate hiding (pi)
 import qualified Data.Array.Accelerate.Interpreter as I
 import qualified Data.Array.Accelerate.LLVM.Native as CPU
+import qualified Data.Array.Accelerate.LLVM.PTX as GPU
 
 import BAIO
 import Types
@@ -145,7 +146,7 @@ instance NFData ObjectiveProgram
 run1Of :: (Arrays a, Arrays b) => BackendKind -> (Acc a -> Acc b) -> a -> b
 run1Of Interpreter = I.run1
 run1Of CPU = CPU.run1
--- run1Of GPU = GPU.run1
+run1Of GPU = GPU.run1
 
 baObjectiveProgram :: BackendKind -> ObjectiveProgram
 baObjectiveProgram kind = ObjectiveProgram (run1Of kind objective)

@@ -36,7 +36,7 @@ executable adbench-accelerate-ba
   build-depends:       base >= 4.13 && < 4.15,
                        accelerate,
                        accelerate-llvm-native,
-                       -- accelerate-llvm-ptx,
+                       accelerate-llvm-ptx,
                        filepath,
                        criterion-measurement >= 0.1.2 && < 0.2,
                        deepseq,
