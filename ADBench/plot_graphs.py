@@ -66,8 +66,8 @@ tool_styles = {
     # Haskell tools
     "Accelerate": ("c", "x", "Haskell, Accelerate"),
     "Accelerate1": ("r", "x", "Haskell, Accelerate (1 thread)"),
-    "Accelerate": ("c", "p", "Haskell, Accelerate (recompute)"),
-    "Accelerate1": ("r", "p", "Haskell, Accelerate (recompute, 1 thread)"),
+    "AccelerateRecomp": ("c", "p", "Haskell, Accelerate (recompute)"),
+    "AccelerateRecomp1": ("r", "p", "Haskell, Accelerate (recompute, 1 thread)"),
 }
 
 function_types = ["objective ÷ Manual", "objective", "jacobian", "jacobian ÷ objective"]
