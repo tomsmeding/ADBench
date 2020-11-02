@@ -686,8 +686,12 @@ $default_tolerance = 1e-8
 # Separate Full|Split?
 # Separate GMM sizes?
 $tool_descriptors = @(
-    [Tool]::new("Accelerate", "bin", [ObjectiveType] "GMM", $false, 0.0, $true, $false)
-    [Tool]::new("Accelerate1", "bin", [ObjectiveType] "GMM", $false, 0.0, $true, $false)
+    [Tool]::new("Accelerate", "bin", [ObjectiveType] "GMM, BA", $false, 0.0, $true, $false)
+    [Tool]::new("Accelerate1", "bin", [ObjectiveType] "GMM, BA", $false, 0.0, $true, $false)
+    #[Tool]::new("AccelerateGPU", "bin", [ObjectiveType] "GMM, BA", $false, 0.0, $true, $false)
+    [Tool]::new("AccelerateRecomp", "bin", [ObjectiveType] "GMM", $false, 0.0, $true, $false)
+    [Tool]::new("AccelerateRecomp1", "bin", [ObjectiveType] "GMM", $false, 0.0, $true, $false)
+    #[Tool]::new("AccelerateRecompGPU", "bin", [ObjectiveType] "GMM", $false, 0.0, $true, $false)
     #[Tool]::new("Adept", "bin", [ObjectiveType] "GMM, BA, Hand", $false, 0.0, $true, $false)
     #[Tool]::new("ADOLC", "bin", [ObjectiveType] "GMM, BA, Hand", $false, 0.0, $true, $false)
     #[Tool]::new("ADOLCEigen", "bin", [ObjectiveType] "Hand", $false, 0.0, $true, $false)
