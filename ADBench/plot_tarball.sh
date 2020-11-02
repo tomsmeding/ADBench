@@ -26,7 +26,7 @@ for arg; do
     esac
 done
 
-[[ $do_plot -eq 1 ]] && python3 ./plot_graphs.py --save
+[[ $do_plot -eq 1 ]] && python3 ./plot_graphs.py --save --plotly
 
 tempdir="$(mktemp -d)"
 trap "rm -rf '$tempdir'" EXIT
@@ -39,13 +39,13 @@ mkdir "$tempdir/graphs"
         exec 10>"$tempdir/graphs/filelist.txt"
     fi
 
-    for fname in ../tmp/graphs/static/Release/*/*.png; do
+    for fname in ../tmp/graphs/static/Release/*/*.png ../tmp/graphs/plotly/Release/*/*.html; do
         newname="$(sed -n -e 's,.*/,,' \
                           -e 's/Jacobian ÷ objective/JdivO/' \
                           -e 's/Objective ÷ manual/OdivM/' \
                           -e 's/Objective/O/' \
                           -e 's/Jacobian/J/' \
-                          -e 's/^\([^ ]\+\)\( ([^)]*)\)\? \[\([^]]\+\)\] - Release Graph\.png$/\1 \3\2.png/p' \
+						  -e 's/^\([^ ]\+\)\( ([^)]*)\)\? \[\([^]]\+\)\] - Release Graph\.\([a-z]\+\)$/\1 \3\2.\4/p' \
                         <<<"$fname" | tr -d '()' )"
         testname="${newname/ */}"
         if [[ $testname == "GMM" || $testname == "BA" ]]; then
@@ -59,13 +59,57 @@ mkdir "$tempdir/graphs"
 
 if [[ $do_html -eq 1 ]]; then
     {
-        echo "<!doctype html>"
-        echo "<html><head><meta charset=\"utf-8\"><title>ADBench graphs</title></head>"
-        echo "<body>"
+        cat <<'EOF'
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>ADBench graphs</title>
+<script>
+window.addEventListener("load", function() {
+    var links = new Map();
+    var srccont = document.getElementById("links");
+    for (var i = 0; i < srccont.children.length; i++) {
+		if (srccont.children[i].tagName != "A") continue;
+        var fname = srccont.children[i].getAttribute("href");
+        var m = fname.match(/^(.*)\.([^.]*)$/);
+        var base = m[1], ext = m[2];
+        if (links.has(base)) links.get(base).push(ext);
+        else links.set(base, [ext]);
+    }
+    var table = document.createElement("table");
+    var tbody = document.createElement("tbody");
+    links.forEach(function(exts, base) {
+        var tr = document.createElement("tr");
+        var td = document.createElement("td");
+        td.appendChild(document.createTextNode(base));
+        tr.appendChild(td);
+        for (var i = 0; i < exts.length; i++) {
+            td = document.createElement("td");
+            var a = document.createElement("a");
+            a.href = base + "." + exts[i];
+            a.appendChild(document.createTextNode(exts[i]));
+            td.appendChild(a);
+            tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    document.body.appendChild(table);
+    document.body.removeChild(srccont);
+});
+</script>
+</head>
+<body>
+GMM and BA benchmarks, and non-Accelerate implementations, from <a href="https://github.com/microsoft/ADBench">ADBench</a><br><br>
+O = objective; J = jacobian; JdivO = jacobian / objective; OdivM = objective / (manual on objective)<br><br>
+<div id="links">
+EOF
         sort -k1,2 -k3n,3n "$tempdir/graphs/filelist.txt" | while read fname; do
             echo "<a href=\"$fname\">$fname</a><br>"
         done
-        echo "</body></html>"
+        cat <<'EOF'
+</div>
+</body></html>
+EOF
     } >"$tempdir/graphs/index.html"
     rm "$tempdir/graphs/filelist.txt"
 fi
