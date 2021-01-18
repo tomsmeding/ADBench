@@ -18,16 +18,16 @@ import Timer
 import Types
 import qualified Playground as Play
 
-import qualified Data.Array.Accelerate as A
-import qualified Data.Array.Accelerate.LLVM.PTX as GPU
+-- import qualified Data.Array.Accelerate as A
+-- import qualified Data.Array.Accelerate.LLVM.PTX as GPU
 
 
-testGPU :: IO ()
-testGPU = do
-    let prog = A.sum (A.generate (A.I1 1000000) (\(A.I1 i) -> A.toFloating i :: A.Exp Float))
-    print $ GPU.run prog
-    inst <- gmmReadInstance "../../data/gmm/1k/gmm_d2_K5.txt" False
-    print $ gmmObjective (gmmObjectiveProgram GPU inst) inst
+-- testGPU :: IO ()
+-- testGPU = do
+--     let prog = A.sum (A.generate (A.I1 1000000) (\(A.I1 i) -> A.toFloating i :: A.Exp Float))
+--     print $ GPU.run prog
+--     inst <- gmmReadInstance "../../data/gmm/1k/gmm_d2_K5.txt" False
+--     print $ gmmObjective (gmmObjectiveProgram GPU inst) inst
 
 
 data Stats a = Stats { statsMean :: a, statsStddev :: a, statsStderr :: a }
@@ -160,7 +160,7 @@ main = do
         Args ["play", "fusion"] [index] -> do
             print (Play.fusionProgram (read index - 1))
 
-        Args ["testgpu"] [] -> testGPU
+        -- Args ["testgpu"] [] -> testGPU
 
         Args flags [inDir, outDir, testId, nrunsF', nrunsJ', timeLimit'] -> do
             let nrunsF = parseIntArg nrunsF'

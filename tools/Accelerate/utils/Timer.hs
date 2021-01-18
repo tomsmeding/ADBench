@@ -7,6 +7,7 @@ import Control.DeepSeq (NFData)
 import Criterion.Measurement (measure)
 import Criterion.Measurement.Types (nf, nfAppIO, measTime)
 import Data.IORef
+-- import System.IO (hPutStrLn, stderr)
 
 
 -- | Run the function once with the specified argument, and return the amount
@@ -14,7 +15,7 @@ import Data.IORef
 runOnce :: NFData b => (a -> b) -> a -> IO Double
 runOnce func arg = do
     (measured, _) <- measure (nf func arg) 1
-    -- putStrLn ("(timer: sample " ++ show (measTime measured) ++ ")")
+    -- hPutStrLn stderr ("(timer: sample " ++ show (measTime measured) ++ ")")
     return (measTime measured)
 
 -- | Run the function once with the specified argument, and return the amount
@@ -29,7 +30,7 @@ runOnceResult func arg = do
             writeIORef resultRef (Just output)
             return output
     (measured, _) <- measure (nfAppIO func' arg) 1
-    -- putStrLn ("(timer: sample " ++ show (measTime measured) ++ ")")
+    -- hPutStrLn stderr ("(timer: sample " ++ show (measTime measured) ++ ")")
     Just result <- readIORef resultRef
     return (measTime measured, result)
 

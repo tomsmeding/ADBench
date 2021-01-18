@@ -14,7 +14,7 @@ import Control.DeepSeq (NFData)
 import Data.Array.Accelerate
 import qualified Data.Array.Accelerate.Interpreter as I
 import qualified Data.Array.Accelerate.LLVM.Native as CPU
-import qualified Data.Array.Accelerate.LLVM.PTX as GPU
+-- import qualified Data.Array.Accelerate.LLVM.PTX as GPU
 import Numeric.SpecFunctions (logGamma)
 
 import GMMIO
@@ -129,7 +129,7 @@ instance NFData ObjectiveProgram
 run1Of :: (Arrays a, Arrays b) => BackendKind -> (Acc a -> Acc b) -> a -> b
 run1Of Interpreter = I.run1
 run1Of CPU = CPU.run1
-run1Of GPU = GPU.run1
+-- run1Of GPU = GPU.run1
 
 gmmObjectiveProgram :: BackendKind -> GMMIn -> ObjectiveProgram
 gmmObjectiveProgram kind (precompute -> prec) =
