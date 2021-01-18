@@ -393,6 +393,11 @@ Class Tool {
         $out_name_postfix = $this.get_out_name_postfix($objective)
         $output_file = $this.get_time_output_file_name($dir_out, $fn, $out_name_postfix)
 
+        if (($this.name -ceq "Tensorflow") -and ($objective -ceq "GMM") -and ($dir_in -match "10k/$") -and (($fn -ceq "gmm_d128_K100") -or ($fn -ceq "gmm_d128_K200"))) {
+            Write-Host "          Skipped test (known out of memory - Tom Smeding)"
+            return [RunTestStatus]::OutOfMemory
+        }
+
         if (!$script:repeat -and (Test-Path $output_file)) {
             if ($script:repeat_failures) {
                 $test_failed = Select-String -quiet '^inf inf$' $output_file
@@ -548,6 +553,11 @@ Class Tool {
 
         foreach ($type in $types) {
             Write-Host "  GMM$type"
+
+            if (($this.name -like "Accelerate*") -and ($type -ceq "-SPLIT")) {
+                Write-Host "    (Skipping GMM-SPLIT for Accelerate - Tom Smeding)"
+                continue
+            }
 
             foreach ($sz in $script:gmm_sizes) {
                 Write-Host "    $sz"
