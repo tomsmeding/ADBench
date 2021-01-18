@@ -42,6 +42,14 @@ cd "$sourcedir"
 tempdir="$(mktemp -d)"
 trap "rm -rf '$tempdir'" EXIT
 
+# This is a hack to undo HunterGate's sandboxing. A far better solution
+# would be to let HunterGate know we need libffi (and llvm9) so that it
+# can put things in the PATH, but I'm out of time and unwilling to
+# investigate how HunterGate and cmake even work. Thus this hack.
+if ! pkg-config --libs libffi >/dev/null 2>&1; then
+    export -n PKG_CONFIG_LIBDIR
+fi
+
 stack build --copy-bins --local-bin-path="$tempdir"
 
 mv "$tempdir"/adbench-accelerate-gmm "$binarydir"/adbench-accelerate-GMM-FULL
