@@ -141,7 +141,7 @@ Objective function:
 Jacobian matrix:
 \begin{align*}
 \mathrm{J} \in \R^{(2p + p) \times (11n + 3m + p)} ;\;
-J[i][j] = \frac{\partial (\mathrm{reproj\mathunderscore{}error} \append \mathrm{w\mathunderscore{}error})_i}{\partial (\flatten{\bm{C}} \append \flatten{\bm{X}} \append \bm{w})_j}
+J[i][j] = \frac{\partial (\flatten{\mathrm{reproj\mathunderscore{}error}} \append \mathrm{w\mathunderscore{}error})_i}{\partial (\flatten{\bm{C}} \append \flatten{\bm{X}} \append \bm{w})_j}
 \end{align*}
 where $\flatten{\bm{C}}$ means to flatten $\bm{C}$ in row-major order.
 For example, $\flatten{\bm{C}} \in \R^{11n}$ contains $n$ blocks of $11$ scalars.
